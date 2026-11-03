@@ -34,5 +34,8 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules"]
+  // `services/` has its own tsconfig and is compiled by nobody: Node runs those files
+  // directly with type stripping, so their relative imports carry a real `.ts` extension
+  // that this config rejects. Two processes, two compilers, two configs.
+  "exclude": ["node_modules", "services"]
 }

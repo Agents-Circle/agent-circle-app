@@ -1,0 +1,73 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  app:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npm run lint
+      # No Supabase or chain configuration, deliberately. The build has to work without
+      # credentials or it cannot be built in CI, and it previously did not.
+      - run: npm run build
+
+  services:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          # 22 for native type stripping: the services have no build step and Node runs
+          # the .ts files directly.
+          node-version: 22
+          cache: npm
+          cache-dependency-path: services/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+
+  migrations:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+        ports: [5432:5432]
+    steps:
+      - uses: actions/checkout@v4
+      # Applied in order against real Postgres with Supabase's default privileges, because
+      # a migration that only parses is not a migration that works. This is how the
+      # column-level REVOKE that silently did nothing was caught.
+      - name: Apply migrations
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h localhost -U postgres -v ON_ERROR_STOP=1 <<'SQL'
+          create role anon nologin noinherit;
+          create role authenticated nologin noinherit;
+          create role service_role nologin noinherit bypassrls;
+          grant usage on schema public to anon, authenticated, service_role;
+          alter default privileges in schema public grant select on tables to anon, authenticated;
+          alter default privileges in schema public grant all on tables to service_role;
+          alter default privileges in schema public grant all on sequences to anon, authenticated, service_role;
+          SQL
+          for file in supabase/migrations/*.sql; do
+            echo "applying $file"
+            psql -h localhost -U postgres -v ON_ERROR_STOP=1 -f "$file"
+          done
