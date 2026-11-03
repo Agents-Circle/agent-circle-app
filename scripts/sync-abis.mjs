@@ -28,7 +28,19 @@ import { fileURLToPath } from "node:url";
 
 const appRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const evmRepo = process.env.EVM_REPO ?? join(appRoot, "..", "agent-circle-evm");
-const outDir = join(appRoot, "lib", "contracts", "abis");
+/**
+ * Both consumers get the same generated file.
+ *
+ * The app and the services are separate processes with separate `tsconfig`s, and the
+ * services deliberately do not import out of the app's `lib/` — Node runs those files
+ * directly with type stripping, while `lib/` is bundled by Next and uses `@/` path
+ * aliases Node knows nothing about. Generating twice keeps them independent, and
+ * `--check` covers both, so the two copies cannot drift.
+ */
+const outDirs = [
+  join(appRoot, "lib", "contracts", "abis"),
+  join(appRoot, "services", "src", "abis"),
+];
 
 /** `[solidity file, contract name]`. Only what the app actually calls. */
 const CONTRACTS = [
@@ -64,7 +76,7 @@ async function main() {
     process.exit(1);
   }
 
-  await mkdir(outDir, { recursive: true });
+  for (const dir of outDirs) await mkdir(dir, { recursive: true });
   let stale = [];
 
   for (const [file, name] of CONTRACTS) {
@@ -80,28 +92,35 @@ async function main() {
     // the error entries, which is the difference between "PositionCapExceeded" and an
     // unreadable hex blob in front of a user.
     const abi = artifact.abi;
-    const target = join(outDir, `${name}.ts`);
     const body = `${BANNER}
 export const ${name}Abi = ${JSON.stringify(abi, null, 2)} as const;
 `;
 
-    if (check) {
-      const current = (await exists(target)) ? await readFile(target, "utf8") : "";
-      if (current !== body) stale.push(name);
-    } else {
-      await writeFile(target, body);
-      console.log(`  ${name}  (${abi.length} entries)`);
+    for (const dir of outDirs) {
+      const target = join(dir, `${name}.ts`);
+      if (check) {
+        const current = (await exists(target)) ? await readFile(target, "utf8") : "";
+        if (current !== body) stale.push(`${name} in ${dir}`);
+      } else {
+        await writeFile(target, body);
+      }
     }
+    if (!check) console.log(`  ${name}  (${abi.length} entries)`);
   }
 
-  const indexBody = `${BANNER}
-${CONTRACTS.map(([, n]) => `export { ${n}Abi } from "./${n}";`).join("\n")}
+  // The services resolve relative imports with Node's own rules, which means the real
+  // file extension. The app is bundled and uses extensionless specifiers. Same exports,
+  // one character apart, and getting it wrong fails at import time in one of the two.
+  const indexFor = (dir) => `${BANNER}
+${CONTRACTS.map(([, n]) => `export { ${n}Abi } from "./${n}${dir.includes("services") ? ".ts" : ""}";`).join("\n")}
 `;
-  const indexPath = join(outDir, "index.ts");
 
   if (check) {
-    const current = (await exists(indexPath)) ? await readFile(indexPath, "utf8") : "";
-    if (current !== indexBody) stale.push("index");
+    for (const dir of outDirs) {
+      const indexPath = join(dir, "index.ts");
+      const current = (await exists(indexPath)) ? await readFile(indexPath, "utf8") : "";
+      if (current !== indexFor(dir)) stale.push(`index in ${dir}`);
+    }
 
     if (stale.length) {
       console.error(
@@ -114,8 +133,8 @@ ${CONTRACTS.map(([, n]) => `export { ${n}Abi } from "./${n}";`).join("\n")}
     return;
   }
 
-  await writeFile(indexPath, indexBody);
-  console.log(`Wrote ${CONTRACTS.length} ABIs to lib/contracts/abis/`);
+  for (const dir of outDirs) await writeFile(join(dir, "index.ts"), indexFor(dir));
+  console.log(`Wrote ${CONTRACTS.length} ABIs to ${outDirs.length} directories`);
 }
 
 await main();

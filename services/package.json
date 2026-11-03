@@ -1,0 +1,24 @@
+{
+  "name": "agent-circle-services",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Indexer and keeper for the HyperEVM vaults.",
+  "engines": {
+    "node": ">=22.6"
+  },
+  "scripts": {
+    "indexer": "node src/indexer/main.ts",
+    "keeper": "node src/keeper/main.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test 'src/**/*.test.ts'"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.110.8",
+    "viem": "^2.37.6"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.9.0"
+  }
+}
