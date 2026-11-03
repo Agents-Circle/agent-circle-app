@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "sync-abis": "node scripts/sync-abis.mjs",
+    "check-abis": "node scripts/sync-abis.mjs --check"
   },
   "dependencies": {
     "@solana/wallet-adapter-base": "^0.9.27",
