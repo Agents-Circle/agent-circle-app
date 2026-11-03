@@ -4,6 +4,7 @@ import "./globals.css";
 import { Nav } from "@/components/Nav";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { WalletContextProvider } from "@/components/WalletContextProvider";
+import { EvmProvider } from "@/components/EvmProvider";
 
 const poppins = Poppins({
   variable: "--font-body",
@@ -29,10 +30,12 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         <ThemeProvider attribute="data-theme" defaultTheme="dark" enableSystem={false}>
-          <WalletContextProvider>
-            <Nav />
-            <main className="flex-1">{children}</main>
-          </WalletContextProvider>
+          <EvmProvider>
+            <WalletContextProvider>
+              <Nav />
+              <main className="flex-1">{children}</main>
+            </WalletContextProvider>
+          </EvmProvider>
         </ThemeProvider>
       </body>
     </html>

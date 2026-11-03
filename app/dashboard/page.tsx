@@ -36,11 +36,12 @@ export default function DashboardPage() {
     });
   }, []);
 
+  // No `setRealListings(null)` on sign-out: `listings` below reads null whenever there
+  // is no session, so the state does not need clearing and the effect does not need a
+  // synchronous setState. Stale data cannot leak past a sign-out because the read is
+  // gated on `session`, not on the fetch having been cleared.
   useEffect(() => {
-    if (!session) {
-      setRealListings(null);
-      return;
-    }
+    if (!session) return;
     getMyListings(session.token)
       .then(setRealListings)
       .catch((e) => {
