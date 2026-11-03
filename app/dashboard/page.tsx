@@ -2,12 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { MOCK_LISTINGS } from "@/lib/mockData";
-import { getAllAgents } from "@/lib/agents";
 import { getMyListings, type MyListing } from "@/lib/builderApi";
 import { isSessionInvalidError } from "@/lib/auth";
 import { useSiws } from "@/hooks/useSiws";
-import type { Agent } from "@/lib/types";
 import { AgentAvatar } from "@/components/AgentAvatar";
 import { PageHeader } from "@/components/PageHeader";
 import { WalletButton } from "@/components/WalletButton";
@@ -27,23 +24,16 @@ type Row = {
 
 export default function DashboardPage() {
   const { connected, wallet, session, verify, verifying, error: authError, signOut } = useSiws();
-  const [agentsBySlug, setAgentsBySlug] = useState<Map<string, Agent>>(new Map());
-  const [realListings, setRealListings] = useState<MyListing[] | null>(null);
+  const [listings, setListings] = useState<MyListing[] | null>(null);
 
-  useEffect(() => {
-    getAllAgents().then((agents) => {
-      setAgentsBySlug(new Map(agents.map((agent) => [agent.slug, agent])));
-    });
-  }, []);
-
-  // No `setRealListings(null)` on sign-out: `listings` below reads null whenever there
+  // No `setListings(null)` on sign-out: `listings` below reads null whenever there
   // is no session, so the state does not need clearing and the effect does not need a
   // synchronous setState. Stale data cannot leak past a sign-out because the read is
   // gated on `session`, not on the fetch having been cleared.
   useEffect(() => {
     if (!session) return;
     getMyListings(session.token)
-      .then(setRealListings)
+      .then(setListings)
       .catch((e) => {
         if (e instanceof Error && isSessionInvalidError(e.message)) signOut();
       });
@@ -52,8 +42,12 @@ export default function DashboardPage() {
   const authed = Boolean(session);
   const shortAddress = wallet ? `${wallet.slice(0, 4)}…${wallet.slice(-4)}` : null;
 
+  // Null means the fetch has not resolved, which is not the same as owning no listings —
+  // the difference decides whether "No listings yet" is true or merely early.
+  const loading = authed && listings === null;
+
   const rows: Row[] = authed
-    ? (realListings ?? []).map((l) => ({
+    ? (listings ?? []).map((l) => ({
         id: l.id,
         agentSlug: l.agent_slug,
         agentName: l.agent_name,
@@ -70,21 +64,7 @@ export default function DashboardPage() {
         status: l.status,
         listedAt: new Date(l.listed_at).toISOString().slice(0, 10),
       }))
-    : MOCK_LISTINGS.map((l) => {
-        const agent = agentsBySlug.get(l.agentSlug);
-        return {
-          id: l.id,
-          agentSlug: l.agentSlug,
-          agentName: agent?.name ?? l.agentSlug,
-          agentMarket: agent?.market ?? "",
-          allocatedCapital: l.allocatedCapital,
-          currentValue: l.currentValue,
-          pnlPct: l.pnlPct,
-          maxDrawdownPct: l.maxDrawdownPct,
-          status: l.status,
-          listedAt: l.listedAt,
-        };
-      });
+    : [];
 
   const totalAllocated = rows.reduce((sum, r) => sum + r.allocatedCapital, 0);
   const totalValue = rows.reduce((sum, r) => sum + r.currentValue, 0);
@@ -105,7 +85,7 @@ export default function DashboardPage() {
             you&apos;ve listed.{" "}
             {authed
               ? "Showing listings tied to your verified wallet."
-              : "Sample data shown below — connect and verify a wallet to see your own."}
+              : "Connect and verify a wallet to see your listings."}
           </>
         }
       />
@@ -142,7 +122,13 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {authed && rows.length === 0 && (
+      {loading && (
+        <p className="mt-8 text-center text-sm" style={{ color: "var(--muted)" }}>
+          Loading listings for {shortAddress}…
+        </p>
+      )}
+
+      {authed && !loading && rows.length === 0 && (
         <div
           className="mt-8 rounded-2xl border p-10 text-center"
           style={{ borderColor: "var(--border)", background: "var(--card)" }}

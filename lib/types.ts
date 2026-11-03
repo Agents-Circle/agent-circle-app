@@ -26,16 +26,3 @@ export type Agent = {
     autoPause: boolean;
   };
 };
-
-export type Listing = {
-  id: string;
-  agentSlug: string;
-  allocatedCapital: number;
-  currentValue: number;
-  pnlPct: number;
-  status: "active" | "paused" | "closed";
-  positionCapPct: number;
-  maxDrawdownPct: number;
-  autoPause: boolean;
-  listedAt: string;
-};
