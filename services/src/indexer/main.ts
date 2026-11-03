@@ -4,7 +4,7 @@ import { publicClientFor } from "../shared/chain.ts";
 import { database } from "../shared/db.ts";
 import { indexerConfig } from "../shared/env.ts";
 import { InfoApi, assetIndexByCoin, sleep } from "../shared/hyperliquid.ts";
-import { logger } from "../shared/log.ts";
+import { fatal, logger } from "../shared/log.ts";
 import { blockRanges, readCursor, writeCursor } from "./cursor.ts";
 import { syncVaultEvents } from "./events.ts";
 import { syncFills } from "./fills.ts";
@@ -220,4 +220,4 @@ async function main(): Promise<void> {
   }
 }
 
-await main();
+await main().catch((error) => fatal(log, error));

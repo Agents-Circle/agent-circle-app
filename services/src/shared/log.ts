@@ -43,3 +43,22 @@ export function logger(service: string): Logger {
     error: (msg, fields) => emit("error", service, msg, fields),
   };
 }
+
+/**
+ * Fail with a readable message rather than a stack trace.
+ *
+ * Almost everything that stops these processes at start-up is a missing or malformed
+ * environment variable, and the person reading the output is deploying rather than
+ * debugging. The stack is kept as a field for the case where it is a real bug.
+ */
+export function fatal(log: Logger, error: unknown): never {
+  if (error instanceof Error) {
+    // The stack goes in at debug level only. A missing variable does not need eight
+    // frames of Node internals in front of the one line that says which variable.
+    log.error(error.message);
+    log.debug("stack", { stack: error.stack });
+  } else {
+    log.error(String(error));
+  }
+  process.exit(1);
+}

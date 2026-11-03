@@ -8,10 +8,10 @@
     "node": ">=22.6"
   },
   "scripts": {
-    "indexer": "node src/indexer/main.ts",
-    "keeper": "node src/keeper/main.ts",
+    "indexer": "node --disable-warning=ExperimentalWarning src/indexer/main.ts",
+    "keeper": "node --disable-warning=ExperimentalWarning src/keeper/main.ts",
     "typecheck": "tsc --noEmit",
-    "test": "node --test 'src/**/*.test.ts'"
+    "test": "node --disable-warning=ExperimentalWarning --test 'src/**/*.test.ts'"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.8",

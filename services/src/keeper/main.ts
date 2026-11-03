@@ -7,7 +7,7 @@ import { chainFor, publicClientFor } from "../shared/chain.ts";
 import { database, requireWrite } from "../shared/db.ts";
 import { keeperConfig } from "../shared/env.ts";
 import { InfoApi, assetIndexByCoin, sleep } from "../shared/hyperliquid.ts";
-import { logger } from "../shared/log.ts";
+import { fatal, logger } from "../shared/log.ts";
 import { drawdownBps } from "../shared/units.ts";
 import { readVaultState, VAULT_STATUS } from "../indexer/vaults.ts";
 import { checkCap, effectiveCapBps, readPositions } from "./monitor.ts";
@@ -332,4 +332,4 @@ async function main(): Promise<void> {
   }
 }
 
-await main();
+await main().catch((error) => fatal(log, error));
