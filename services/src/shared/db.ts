@@ -11,7 +11,7 @@ import type { CoreConfig } from "./env.ts";
  * it is also why the wrong key here produces a service that looks healthy and stores
  * nothing. Hence `requireRowsAffected` below.
  */
-export function database(config: CoreConfig): SupabaseClient {
+export function database(config: Pick<CoreConfig, "supabaseUrl" | "supabaseServiceKey">): SupabaseClient {
   return createClient(config.supabaseUrl, config.supabaseServiceKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
