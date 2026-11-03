@@ -7,7 +7,7 @@ Two long-running processes behind the HyperEVM vaults.
 | **indexer** | Reads the registry, the factory, the vault clones and the Hyperliquid info API; writes the mirror the app reads and rolls up the daily agent metrics. |
 | **keeper** | Calls `reconcile` on the vaults that need it, and watches the ones running in fast mode. |
 
-Both are plain Node. There is no build step: Node 22.6+ strips the types and runs the
+Both are plain Node. There is no build step: Node 22.18+ strips the types and runs the
 `.ts` files directly, which is why relative imports carry their real `.ts` extension and
 why `tsconfig.json` sets `erasableSyntaxOnly` — no `enum`, no `namespace`, no parameter
 properties, because those would need a compiler.

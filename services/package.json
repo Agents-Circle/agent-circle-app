@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Indexer and keeper for the HyperEVM vaults.",
   "engines": {
-    "node": ">=22.6"
+    "node": ">=22.18"
   },
   "scripts": {
     "indexer": "node --disable-warning=ExperimentalWarning src/indexer/main.ts",
