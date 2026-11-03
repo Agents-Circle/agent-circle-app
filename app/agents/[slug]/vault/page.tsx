@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { getAgentBySlug } from "@/lib/agents";
+import { FeedNotice } from "@/components/FeedNotice";
 import { AgentAvatar } from "@/components/AgentAvatar";
 import { VaultPanel } from "@/components/vault/VaultPanel";
 
@@ -24,7 +25,19 @@ export default async function AgentVaultPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const agent = await getAgentBySlug(slug);
+  const lookup = await getAgentBySlug(slug);
+
+  // A failed read is not a 404: the agent may well exist. `notFound()` here would
+  // assert it does not.
+  if (!lookup.ok) {
+    return (
+      <div className="mx-auto max-w-3xl px-6 py-14">
+        <FeedNotice reason={lookup.reason} />
+      </div>
+    );
+  }
+
+  const agent = lookup.agent;
 
   if (!agent) notFound();
 

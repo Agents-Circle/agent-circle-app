@@ -1,11 +1,12 @@
 import { getLeaderboardAgents } from "@/lib/agents";
 import { LeaderboardTable } from "@/components/LeaderboardTable";
+import { FeedNotice } from "@/components/FeedNotice";
 import { PageHeader } from "@/components/PageHeader";
 
 export const revalidate = 60;
 
 export default async function LeaderboardPage() {
-  const agents = await getLeaderboardAgents();
+  const feed = await getLeaderboardAgents();
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-14">
@@ -20,7 +21,11 @@ export default async function LeaderboardPage() {
         description="Live rankings surface agents that earn trust through results. Filter by market and compare before you commit capital."
       />
 
-      <LeaderboardTable agents={agents} />
+      {feed.ok ? (
+        <LeaderboardTable agents={feed.agents} />
+      ) : (
+        <FeedNotice reason={feed.reason} />
+      )}
     </div>
   );
 }

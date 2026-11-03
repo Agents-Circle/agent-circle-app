@@ -1,13 +1,28 @@
 import { supabase, isSupabaseConfigured } from "./supabaseClient";
-import { MOCK_AGENTS } from "./mockData";
 import type { Agent, MarketCategory } from "./types";
 
-// Asks `supabaseClient` rather than re-deriving it from the URL. Two copies of this
-// check is one copy too many: the duplicate here is what kept the build alive while the
-// client itself threw on import.
-function shouldUseMockAgents() {
-  return !isSupabaseConfigured;
-}
+/**
+ * Why a read of the catalogue produced no rows.
+ *
+ * `unconfigured` means this deployment has no Supabase credentials. `unavailable` means it
+ * has them and the query failed.
+ *
+ * Both of these used to resolve to `MOCK_AGENTS`: four invented agents with invented
+ * returns, rendered with nothing to mark them as fictional. The second case was the worse
+ * one, because it needed no misconfiguration at all — a single failed query in production
+ * was enough to publish fabricated performance on the leaderboard.
+ *
+ * A marketplace that quotes track records cannot answer "we could not read the data" with
+ * made-up data, so failure is part of the return type and every caller has to say something
+ * true about it. The empty states in `LeaderboardTable` and `AgentsGrid` can then mean what
+ * they say — that there are genuinely no agents — rather than standing in for a failure.
+ */
+export type FeedFailure = "unconfigured" | "unavailable";
+
+export type AgentFeed = { ok: true; agents: Agent[] } | { ok: false; reason: FeedFailure };
+
+/** `agent: null` is a real 404. A failure is not, which is why the two are separate. */
+export type AgentLookup = { ok: true; agent: Agent | null } | { ok: false; reason: FeedFailure };
 
 type AgentRow = {
   id: string;
@@ -30,6 +45,11 @@ type AgentRow = {
   builders: { name: string; builder_score: number } | null;
 };
 
+/**
+ * History is best-effort: an unreadable snapshot table yields an empty series, which draws
+ * no sparkline. That is a missing chart rather than a wrong one, so unlike the agent rows
+ * themselves it does not need to fail the whole read.
+ */
 async function fetchHistoryByAgentId(agentIds: string[]) {
   if (agentIds.length === 0) return new Map<string, number[]>();
 
@@ -80,8 +100,8 @@ function toAgent(row: AgentRow, rank: number, history: number[]): Agent {
   };
 }
 
-export async function getAllAgents(): Promise<Agent[]> {
-  if (shouldUseMockAgents()) return MOCK_AGENTS;
+export async function getAllAgents(): Promise<AgentFeed> {
+  if (!isSupabaseConfigured) return { ok: false, reason: "unconfigured" };
 
   const { data, error } = await supabase
     .from("agents")
@@ -90,24 +110,28 @@ export async function getAllAgents(): Promise<Agent[]> {
     )
     .order("agent_score", { ascending: false });
 
-  if (error || !data) return MOCK_AGENTS;
+  if (error || !data) return { ok: false, reason: "unavailable" };
 
   const rows = data as unknown as AgentRow[];
   const historyByAgent = await fetchHistoryByAgentId(rows.map((r) => r.id));
 
   let liveRank = 0;
-  return rows.map((row) => {
+  const agents = rows.map((row) => {
     if (row.status === "live") liveRank += 1;
     return toAgent(row, row.status === "live" ? liveRank : 0, historyByAgent.get(row.id) ?? []);
   });
+
+  return { ok: true, agents };
 }
 
-export async function getLeaderboardAgents(): Promise<Agent[]> {
-  const agents = await getAllAgents();
-  return agents.filter((agent) => agent.status === "live");
+export async function getLeaderboardAgents(): Promise<AgentFeed> {
+  const feed = await getAllAgents();
+  if (!feed.ok) return feed;
+  return { ok: true, agents: feed.agents.filter((agent) => agent.status === "live") };
 }
 
-export async function getAgentBySlug(slug: string): Promise<Agent | undefined> {
-  const agents = await getAllAgents();
-  return agents.find((agent) => agent.slug === slug);
+export async function getAgentBySlug(slug: string): Promise<AgentLookup> {
+  const feed = await getAllAgents();
+  if (!feed.ok) return feed;
+  return { ok: true, agent: feed.agents.find((agent) => agent.slug === slug) ?? null };
 }
