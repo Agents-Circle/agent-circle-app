@@ -78,9 +78,9 @@ export function ListForm({ agent }: { agent: Agent }) {
             className="mt-6 rounded-xl border p-4 text-sm"
             style={{ borderColor: "var(--border-strong)", color: "var(--muted)" }}
           >
-            Listing execution isn't live yet — Phase 1 opens once the
+            Listing execution isn&apos;t live yet — Phase 1 opens once the
             vetted agent cohort and on-chain programs are ready. Your inputs
-            aren't saved or submitted anywhere.
+            aren&apos;t saved or submitted anywhere.
           </div>
         ) : (
           <button

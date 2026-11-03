@@ -192,7 +192,7 @@ export function SubmitAgentForm() {
         <div>
           <label htmlFor="agent-description" className="text-xs font-semibold" style={{ color: "var(--muted)" }}>
             Strategy description{" "}
-            <span className="font-normal">(min 20 characters — shown publicly on your agent's profile)</span>
+            <span className="font-normal">(min 20 characters — shown publicly on your agent&apos;s profile)</span>
           </label>
           <textarea
             id="agent-description"

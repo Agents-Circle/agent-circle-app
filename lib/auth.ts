@@ -1,6 +1,8 @@
 import { supabase } from "./supabaseClient";
+import { removeStorageItem, writeStorageItem } from "@/hooks/useStorageItem";
 
-const STORAGE_KEY = "ac-siws-session";
+export const SIWS_STORAGE_KEY = "ac-siws-session";
+const STORAGE_KEY = SIWS_STORAGE_KEY;
 
 export type SiwsSession = { token: string; wallet: string };
 
@@ -18,7 +20,10 @@ export function getStoredSession(wallet?: string | null): SiwsSession | null {
 }
 
 export function clearSession() {
-  if (typeof window !== "undefined") localStorage.removeItem(STORAGE_KEY);
+  // Through the helper, not `localStorage` directly: `useStorageItem` subscribers in
+  // this tab only learn about a write if it is announced, and a sign-out that leaves the
+  // UI looking signed in is the worst version of this bug.
+  removeStorageItem(STORAGE_KEY);
 }
 
 export function isSessionInvalidError(message: string) {
@@ -55,6 +60,6 @@ export async function signInWithSolana(
   }
 
   const session: SiwsSession = { token, wallet };
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+  writeStorageItem(STORAGE_KEY, JSON.stringify(session));
   return session;
 }

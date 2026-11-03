@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import {
+  removeStorageItem,
+  useStorageItem,
+  writeStorageItem,
+} from "@/hooks/useStorageItem";
 import { supabase } from "@/lib/supabaseClient";
 import { AgentAvatar } from "@/components/AgentAvatar";
 import { MarketChip } from "@/components/Badge";
@@ -16,36 +22,50 @@ type VettingAgent = {
   builders: { name: string; wallet_address: string | null } | null;
 };
 
+/// Session storage, not local: an admin code should not outlive the browser session.
+const ADMIN_CODE_KEY = "ac-admin-code";
+
 export default function AdminPage() {
   const [code, setCode] = useState("");
-  const [unlocked, setUnlocked] = useState(false);
-  const [agents, setAgents] = useState<VettingAgent[]>([]);
-  const [loading, setLoading] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
 
-  const loadQueue = useCallback(async () => {
-    setLoading(true);
-    const { data } = await supabase
-      .from("agents")
-      .select("id, slug, name, market, description, created_at, builders ( name, wallet_address )")
-      .eq("status", "vetting")
-      .order("created_at", { ascending: true });
-    setAgents((data as unknown as VettingAgent[]) ?? []);
-    setLoading(false);
-  }, []);
+  // Stored code is the single source of truth for being unlocked. Writing it notifies
+  // `useStorageItem`, so there is no separate `unlocked` state to keep in step — and no
+  // way for the two to disagree.
+  const savedCode = useStorageItem(ADMIN_CODE_KEY, "session");
+  const unlocked = savedCode !== null;
 
-  useEffect(() => {
-    const saved = sessionStorage.getItem("ac-admin-code");
-    if (saved) {
-      setCode(saved);
-      setUnlocked(true);
-    }
-  }, []);
+  // react-query rather than an effect plus two pieces of state.
+  //
+  // The effect version called `setLoading(true)` synchronously on entry, which React 19
+  // flags as a cascading render — and the hand-rolled loading flag could disagree with
+  // the data it was describing. `enabled` ties the fetch to being unlocked, so there is
+  // no "if (unlocked)" branch to keep in step either.
+  const {
+    data: agents = [],
+    isFetching: loading,
+    refetch: loadQueue,
+  } = useQuery({
+    queryKey: ["admin", "vetting-queue"],
+    enabled: unlocked,
+    queryFn: async (): Promise<VettingAgent[]> => {
+      const { data, error } = await supabase
+        .from("agents")
+        .select(
+          "id, slug, name, market, description, created_at, builders ( name, wallet_address )"
+        )
+        .eq("status", "vetting")
+        .order("created_at", { ascending: true });
+      if (error) throw new Error(error.message);
+      return (data as unknown as VettingAgent[]) ?? [];
+    },
+  });
 
-  useEffect(() => {
-    if (unlocked) loadQueue();
-  }, [unlocked, loadQueue]);
+  // Both derived from session storage rather than copied in by an effect. The effect
+  // version rendered the locked screen once and then unlocked itself, which flickers on
+  // every navigation back to this page, and is what React 19 flags as a cascading
+  // render.
 
   const act = async (agent: VettingAgent, action: "approve" | "reject") => {
     setBusyId(agent.id);
@@ -53,15 +73,14 @@ export default function AdminPage() {
 
     const { data, error } = await supabase.rpc(
       action === "approve" ? "approve_agent" : "reject_agent",
-      { p_agent_id: agent.id, p_code: code }
+      { p_agent_id: agent.id, p_code: savedCode ?? "" }
     );
 
     setBusyId(null);
 
     if (error) {
       if (error.message.includes("Invalid access code")) {
-        setUnlocked(false);
-        sessionStorage.removeItem("ac-admin-code");
+        removeStorageItem(ADMIN_CODE_KEY, "session");
         setMessage("Access code rejected — enter it again.");
       } else {
         setMessage(`Could not ${action} ${agent.name}: ${error.message}`);
@@ -90,9 +109,8 @@ export default function AdminPage() {
           onSubmit={(e) => {
             e.preventDefault();
             if (!code.trim()) return;
-            sessionStorage.setItem("ac-admin-code", code.trim());
-            setCode(code.trim());
-            setUnlocked(true);
+            writeStorageItem(ADMIN_CODE_KEY, code.trim(), "session");
+            setCode("");
           }}
         >
           <input
@@ -131,8 +149,7 @@ export default function AdminPage() {
         <button
           type="button"
           onClick={() => {
-            sessionStorage.removeItem("ac-admin-code");
-            setUnlocked(false);
+            removeStorageItem(ADMIN_CODE_KEY, "session");
             setCode("");
           }}
           className="btn-ghost px-4 py-2 text-xs"

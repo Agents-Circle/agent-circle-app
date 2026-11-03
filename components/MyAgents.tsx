@@ -36,7 +36,14 @@ function AgentCard({
   const [drawdown, setDrawdown] = useState("");
 
   const lastReported = agent.last_reported_at ? new Date(agent.last_reported_at).getTime() : 0;
-  const reportCooldown = lastReported > 0 && Date.now() - lastReported < SIX_HOURS_MS;
+
+  // Captured once per mount rather than read during render. `Date.now()` in a render
+  // body is impure — the same props produce different output depending on when React
+  // happened to run, which is what breaks under concurrent rendering. A cooldown is a
+  // UI affordance and the list refetches after a report, so a per-mount reading is
+  // accurate whenever it matters.
+  const [mountedAt] = useState(() => Date.now());
+  const isInReportCooldown = lastReported > 0 && mountedAt - lastReported < SIX_HOURS_MS;
 
   const run = async (fn: () => Promise<void>, success: string) => {
     setBusy(true);
@@ -148,7 +155,7 @@ function AgentCard({
               (self-reported, marked as unverified until on-chain verification lands)
             </span>
           </div>
-          {reportCooldown ? (
+          {isInReportCooldown ? (
             <p className="mt-2 text-xs" style={{ color: "var(--muted)" }}>
               Reported recently — next report available 6 hours after the last one.
             </p>

@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    // Node runs these files directly. Node 22.6+ strips types rather than compiling, so
+    // there is no build step and no `dist/` to keep in sync — but type-only syntax that
+    // *emits* code is unavailable, which `erasableSyntaxOnly` enforces at typecheck time
+    // instead of at 3am in a container. No `enum`, no `namespace`, no parameter
+    // properties; use `const` objects and plain assignments.
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true,
+    // Relative imports carry their real `.ts` extension, because that is the file Node
+    // opens. Rewriting extensions is a bundler concern and there is no bundler here.
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "types": ["node"]
+  },
+  "include": ["src/**/*.ts"]
+}

@@ -4,7 +4,15 @@ import { useMemo } from "react";
 import { Buffer } from "buffer";
 import { ConnectionProvider, WalletProvider } from "@solana/wallet-adapter-react";
 import { WalletModalProvider } from "@solana/wallet-adapter-react-ui";
-import { PhantomWalletAdapter, SolflareWalletAdapter } from "@solana/wallet-adapter-wallets";
+// The two adapters directly, not the `@solana/wallet-adapter-wallets` meta-package.
+//
+// That package depends on *every* adapter — Keystone, Gemini, Fractal, a dozen more —
+// and only Phantom and Solflare are used here. Dropping it took production
+// vulnerabilities from 133 to 62 and criticals from 3 to 2: 71 of them were arriving
+// for wallets the app never offers. The remainder come from @solana/web3.js and the
+// adapter UI and are not removable this way.
+import { PhantomWalletAdapter } from "@solana/wallet-adapter-phantom";
+import { SolflareWalletAdapter } from "@solana/wallet-adapter-solflare";
 import { clusterApiUrl } from "@solana/web3.js";
 
 import "@solana/wallet-adapter-react-ui/styles.css";
