@@ -1,10 +1,12 @@
-import { supabase } from "./supabaseClient";
+import { supabase, isSupabaseConfigured } from "./supabaseClient";
 import { MOCK_AGENTS } from "./mockData";
 import type { Agent, MarketCategory } from "./types";
 
+// Asks `supabaseClient` rather than re-deriving it from the URL. Two copies of this
+// check is one copy too many: the duplicate here is what kept the build alive while the
+// client itself threw on import.
 function useMockAgents() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-  return !url || url.includes("placeholder.supabase.co");
+  return !isSupabaseConfigured;
 }
 
 type AgentRow = {
