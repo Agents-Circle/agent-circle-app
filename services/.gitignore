@@ -1,3 +1,6 @@
 .env
 .env.local
 node_modules/
+
+# The Arena input log is the season itself: back it up, never commit it.
+arena-data/

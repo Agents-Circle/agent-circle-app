@@ -3,13 +3,15 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Indexer and keeper for the HyperEVM vaults.",
+  "description": "Indexer, keeper and the Arena paper-trading engine.",
   "engines": {
     "node": ">=22.18"
   },
   "scripts": {
     "indexer": "node --disable-warning=ExperimentalWarning src/indexer/main.ts",
     "keeper": "node --disable-warning=ExperimentalWarning src/keeper/main.ts",
+    "arena": "node --disable-warning=ExperimentalWarning src/arena/main.ts",
+    "arena:replay": "node --disable-warning=ExperimentalWarning src/arena/replay.ts",
     "typecheck": "tsc --noEmit",
     "test": "node --disable-warning=ExperimentalWarning --test 'src/**/*.test.ts'"
   },

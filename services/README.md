@@ -1,13 +1,14 @@
 # services
 
-Two long-running processes behind the HyperEVM vaults.
+Two long-running processes behind the HyperEVM vaults, and the Arena's paper-trading engine.
 
 | | |
 |---|---|
 | **indexer** | Reads the registry, the factory, the vault clones and the Hyperliquid info API; writes the mirror the app reads and rolls up the daily agent metrics. |
 | **keeper** | Calls `reconcile` on the vaults that need it, and watches the ones running in fast mode. |
+| **arena** | Circle Arena Season 0: paper trading on live Hyperliquid books under the vault's own rules. Holds no key and signs nothing. See [Arena](#arena) below. |
 
-Both are plain Node. There is no build step: Node 22.18+ strips the types and runs the
+All three are plain Node. There is no build step: Node 22.18+ strips the types and runs the
 `.ts` files directly, which is why relative imports carry their real `.ts` extension and
 why `tsconfig.json` sets `erasableSyntaxOnly` — no `enum`, no `namespace`, no parameter
 properties, because those would need a compiler.
@@ -21,6 +22,8 @@ npm test
 
 npm run indexer          # add -- --once for a single pass
 npm run keeper
+npm run arena            # ARENA_SEASON_SLUG and ARENA_COINS set
+npm run arena:replay -- ./arena-data/season-0.jsonl
 ```
 
 ---
@@ -152,3 +155,55 @@ re-does work rather than skipping it.
 Run **one indexer per chain**. Two would duplicate work harmlessly but double the RPC load.
 Run **one keeper**; two would race to reconcile the same vault and one would pay gas for a
 transaction that reverts nothing.
+
+---
+
+## Arena
+
+Season 0 is paper trading against Hyperliquid's live public feed, scored by
+`S = R − λ·MDD` on net-of-fee equity marked every minute. The rules are `SEASON_0` in
+`src/arena/rules.ts`, and their SHA-256 is printed at start-up for the season page.
+
+**The input log is the season.** Every input is stamped with its receive time and
+appended to `ARENA_LOG_PATH` *before* the engine sees it: books, trades, contexts,
+registrations, orders, cancels and clock ticks. The engine has no clock or I/O of its
+own. So:
+
+- **A restart is a replay.** On start the process trims a torn final line, replays the
+  whole log, and only then takes live input, stamped no earlier than the last logged
+  event.
+- **Results are checkable.** `npm run arena:replay -- <log>` rebuilds the final ranking
+  from the log and its `.season.json` alone, with no network, database or keys. Run it on
+  a different machine before any prize is paid. If it disagrees with the published
+  scores, the published scores are wrong.
+- **The `.season.json` beside the log freezes the coin → asset-index mapping**, the
+  season window and the rules hash at first start. Hyperliquid's `meta.universe` order
+  isn't documented as stable, and re-reading it on restart could move every replayed
+  order to a different market. A start with changed rules refuses to replay.
+
+**Order API** (`ARENA_PORT`, default 8787). It uses the vault's shape, not Hyperliquid's.
+
+| Call | What it does |
+|---|---|
+| `POST /v1/orders` | Takes `{asset, isBuy, limitPx, sz, reduceOnly?, tif, cloid}`. Prices and sizes are decimal strings, and `tif` is `alo`, `gtc` or `ioc`. Answers `200` with `accepted` (plus any fill) or `422` with `rejected` and the reason. |
+| `DELETE /v1/orders/:cloid` | Cancels an order. |
+| `GET /v1/account` | Returns equity, positions, orders, fees and drawdown. |
+| `GET /v1/health` | Health check. Needs no key. |
+
+Authenticate with `Authorization: Bearer <key>`. Only `sha256(key)` is stored, in
+`entries.api_key_hash`, and only `active` entries of the season resolve. The entry list
+reloads every minute. An entry joins the season on its first authenticated call. Each
+entry gets 20 requests per 10 seconds, and refused requests never reach the log.
+
+**Scores** are upserted into `scores` every `ARENA_PUBLISH_MS`, one row per entry per UTC
+day. They're a projection of the engine, never its state, so a lost write costs only
+freshness.
+
+**What isn't verified yet:**
+- The 2-second activation delay stands in for CoreWriter's delay, which hasn't been
+  measured on mainnet.
+- The fill model (a 25% depth share, maker fills only on prints through the price) is a
+  conservative guess, not a calibration.
+- The process has only been run against Hyperliquid's live feed for a smoke test, not
+  for a season.
+
