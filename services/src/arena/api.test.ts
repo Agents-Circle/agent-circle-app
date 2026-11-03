@@ -33,6 +33,8 @@ test("malformed orders are refused, never coerced", () => {
     { ...base, sz: "-1" },
     { ...base, sz: "0" },
     { ...base, tif: "fok" },
+    { ...base, tif: "constructor" }, // a prototype key: `in` would have let it through
+    { ...base, tif: "toString" },
     { ...base, asset: 1.5 },
     { ...base, cloid: "0" },
   ]) {

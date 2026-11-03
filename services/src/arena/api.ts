@@ -80,7 +80,12 @@ export function parseOrder(body: unknown): Order {
   if (b.reduceOnly !== undefined && typeof b.reduceOnly !== "boolean") {
     throw new BadRequest("reduceOnly must be a boolean");
   }
-  if (typeof b.tif !== "string" || !(b.tif in TIF)) throw new BadRequest("tif must be one of alo, gtc, ioc");
+  // `in` walks the prototype, so "constructor" and "toString" would pass it and carry a
+  // function through as the tif. `checkOrder` rejects that a layer later, but by then it
+  // has been written to the input log, where a function does not survive JSON.
+  if (typeof b.tif !== "string" || !Object.hasOwn(TIF, b.tif)) {
+    throw new BadRequest("tif must be one of alo, gtc, ioc");
+  }
   return {
     asset: b.asset,
     isBuy: b.isBuy,
