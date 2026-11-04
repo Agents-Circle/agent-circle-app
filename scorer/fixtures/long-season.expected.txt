@@ -1,0 +1,6 @@
+season long-season: 1196 events replayed, rules 7fc2b4a7df7473f2…
+  1  holder  score 0.005200  return 55bps  mdd 3bps  fees 4.129732  not eligible
+  2  daily  score 0.003100  return 33bps  mdd 2bps  fees 4.103065  eligible
+  3  late_joiner  score 0.002800  return 30bps  mdd 2bps  fees 3.406628  eligible
+  4  after_end  score 0.002600  return 27bps  mdd 1bps  fees 2.378281  eligible
+  5  idle_long  score 0.000000  return 0bps  mdd 0bps  fees 0.000000  not eligible
