@@ -45,10 +45,10 @@ export function VaultPanel({ agent, listingId }: { agent: Agent; listingId?: `0x
   // confusing screen than no wallet at all.
   if (!chainId || !isDeployed(chainId)) {
     return (
-      <Notice title="Not deployed yet">
-        The HyperEVM vault contracts have passed their test suite and run against a local
-        node, but they have not been deployed to {DEFAULT_CHAIN.name} or anywhere else. No
-        vault can be opened until they are. The open questions that gate deployment are in{" "}
+      <Notice title="Not deployed on this chain">
+        The HyperEVM vault contracts are deployed on {DEFAULT_CHAIN.name}, but not on the
+        chain this wallet is connected to, so no vault can be opened here. Switch networks.
+        Mainnet is deliberately not deployed: the open questions that gate it are in{" "}
         <code>docs/adr/0002-hyperliquid-execution-modes.md</code>.
       </Notice>
     );

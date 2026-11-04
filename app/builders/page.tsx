@@ -1,3 +1,4 @@
+import { BuilderPanel } from "@/components/builder/BuilderPanel";
 import { SubmitAgentForm } from "@/components/SubmitAgentForm";
 import { MyAgents } from "@/components/MyAgents";
 import { PageHeader } from "@/components/PageHeader";
@@ -47,8 +48,24 @@ export default function BuildersPage() {
         ))}
       </div>
 
-      <SubmitAgentForm />
-      <MyAgents />
+      <section className="mt-12">
+        <h2 className="text-lg font-semibold">On-chain registry</h2>
+        <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
+          Registering and bonding happen on HyperEVM. This is separate from the catalogue
+          entry below: a listing can exist on-chain with no catalogue copy, and a catalogue
+          entry is not a listing.
+        </p>
+        <BuilderPanel />
+      </section>
+
+      <section className="mt-12">
+        <h2 className="text-lg font-semibold">Catalogue entry</h2>
+        <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
+          The marketplace listing people read. It does not create an on-chain listing.
+        </p>
+        <SubmitAgentForm />
+        <MyAgents />
+      </section>
     </div>
   );
 }
