@@ -5,10 +5,13 @@ import { hyperEvm, hyperEvmTestnet, type SupportedChainId } from "@/lib/chains/h
 /**
  * Deployed contract addresses, per chain.
  *
- * From the environment rather than committed, because **nothing is deployed yet**. The
- * Phase 2 contracts have been exercised against a local node and a mocked HyperCore and
- * have never touched a public chain. Hard-coding a placeholder address would be worse
- * than leaving it empty: the UI would render a working deposit form pointed at nothing.
+ * From the environment rather than committed, so that a chain with no deployment reads as
+ * `null` rather than as a working form pointed at nothing.
+ *
+ * HyperEVM **testnet** is live as of 4 November 2026 and its addresses are in
+ * `.env.example`; they are public chain addresses, not secrets. **Mainnet is not
+ * deployed**, so those three stay empty and every mainnet surface reads `isDeployed` as
+ * false.
  *
  * `isDeployed` is how every surface decides whether to offer an action or explain why it
  * cannot. Callers must branch on it rather than assume — see `useVaultDeployment`.
