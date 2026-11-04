@@ -13,7 +13,8 @@
     "arena": "node --disable-warning=ExperimentalWarning src/arena/main.ts",
     "arena:replay": "node --disable-warning=ExperimentalWarning src/arena/replay.ts",
     "typecheck": "tsc --noEmit",
-    "test": "node --disable-warning=ExperimentalWarning --test 'src/**/*.test.ts'"
+    "test": "node --disable-warning=ExperimentalWarning --test 'src/**/*.test.ts'",
+    "elysium:pools": "node --disable-warning=ExperimentalWarning src/elysium/pools.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.8",

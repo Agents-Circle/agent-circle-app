@@ -207,3 +207,34 @@ freshness.
 - The process has only been run against Hyperliquid's live feed for a smoke test, not
   for a season.
 
+
+---
+
+## Elysium (read-only foundation)
+
+`src/elysium/` is groundwork for the optional Elysium/Ascend Arena bracket
+(`plans/arena-season0.md` §7). Whether that bracket runs is still Udoka's call, so none of
+it is wired into Season 0. It holds no key and sends nothing.
+
+`npm run elysium:pools` lists Ascend's launch pools on Elysium testnet: spot price, LP fee
+and liquidity. It also reports whether HyperCore (CoreWriter and the read precompiles) has
+reached the chain, which is the trigger for porting `HLAgentVault` (Option B in the
+Elysium design note).
+
+What it established on 2026-11-04, against the earlier notes:
+
+- **The pools are PancakeSwap Infinity CL pools, not Uniswap v4.** The `Initialize` and
+  `Swap` events have Infinity's shapes, and the pool manager sits behind a `Vault`. State is
+  read with `getSlot0` and `getLiquidity`. Fills will need Infinity's CL quoter, whose
+  Elysium address isn't known yet.
+- **Ascend's testnet was redeployed.** The live hook is `0x6d01…bf3d` and the quote token
+  is a new mock USDC, `0x84cc…cfe2`. The addresses recorded on 3 November are idle.
+- 16 pools so far, all test tokens priced around $0.000008 with a dynamic 1% LP fee, and
+  several with zero liquidity. There's nothing a bracket could meaningfully trade on
+  testnet yet.
+- **No HyperCore yet.** No code at CoreWriter, and the `0x809` precompile returns nothing.
+  On HyperEVM it answers with the L1 block number.
+
+Still to build, if the bracket goes ahead: a quote through the CL quoter (to sell, for
+liquidation-value marks), the sniper-tax schedule read from the hook, pool-age and tax
+filters, and a feed into the engine's input log.
