@@ -48,6 +48,31 @@ Arena tables and an app that cannot sign anyone in.
 |---|---|
 | `20261103000100_hyperliquid_mirror.sql` | On-chain mirror: listings, vaults, fills, daily agent metrics |
 | `20261103000200_arena_and_points.sql` | Seasons, brackets, entries, scores, points ledger, backer stakes, referrals |
+| `20261104000200_lock_admin_and_report_rpcs.sql` | Revokes `EXECUTE` on `approve_agent` / `reject_agent` / `report_performance` from `PUBLIC`, `anon`, `authenticated`; vetting pair granted to `service_role` only |
+
+### Grants on the dashboard-created RPCs
+
+`approve_agent` and `reject_agent` used to be `SECURITY DEFINER` and callable with the anon
+key, gated by a code passed as an argument. They are now service-role only and reached
+through `app/api/admin/vetting`, which requires a signature from a wallet in
+`ADMIN_WALLETS`. `report_performance` is callable by its owner only: leaderboard numbers come
+from the indexer. It is revoked rather than dropped because its body is not captured yet.
+
+Check the live grants after applying, and again after anyone edits these functions in the
+dashboard (`DROP` + `CREATE` resets them to Supabase's defaults, which include `anon`):
+
+```sql
+select p.oid::regprocedure as fn, p.prosecdef as security_definer, p.proacl,
+       has_function_privilege('anon', p.oid, 'EXECUTE')          as anon,
+       has_function_privilege('authenticated', p.oid, 'EXECUTE') as authenticated,
+       has_function_privilege('service_role', p.oid, 'EXECUTE')  as service_role
+from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+where n.nspname = 'public'
+  and p.proname in ('approve_agent', 'reject_agent', 'report_performance');
+```
+
+Expected: `anon` and `authenticated` false on every row; `service_role` true only for the
+vetting pair.
 
 ## Conventions these follow
 
