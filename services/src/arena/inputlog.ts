@@ -1,7 +1,8 @@
 import { createReadStream } from "node:fs";
-import { appendFile, mkdir, readFile, stat, truncate } from "node:fs/promises";
+import { appendFile, mkdir, open, stat, truncate } from "node:fs/promises";
 import { dirname } from "node:path";
 import { createInterface } from "node:readline";
+import { createGunzip } from "node:zlib";
 
 import type { InputEvent } from "./engine.ts";
 
@@ -37,7 +38,11 @@ export function decodeEvent(line: string): InputEvent {
   }) as InputEvent;
 }
 
-/** Every event in a log, in order. A missing file is an empty season, not an error. */
+/**
+ * Every event in a log, in order. A missing file is an empty season, not an error.
+ * A `.gz` path is read through gunzip, so a recorded day can be archived compressed and
+ * still replayed as it is.
+ */
 export async function* readLog(path: string): AsyncGenerator<InputEvent> {
   try {
     await stat(path);
@@ -46,7 +51,10 @@ export async function* readLog(path: string): AsyncGenerator<InputEvent> {
     throw error;
   }
 
-  const lines = createInterface({ input: createReadStream(path, { encoding: "utf8" }), crlfDelay: Infinity });
+  const raw = createReadStream(path);
+  const input = path.endsWith(".gz") ? raw.pipe(createGunzip()) : raw;
+  input.setEncoding("utf8");
+  const lines = createInterface({ input, crlfDelay: Infinity });
   // A torn *final* line is what a crash mid-append leaves, and the engine never applied
   // it, so it is skipped. An unreadable line with anything after it is a corrupted
   // season, and a prize must not be paid against it.
@@ -73,17 +81,66 @@ export async function* readLog(path: string): AsyncGenerator<InputEvent> {
  * whether anything was trimmed.
  */
 export async function repairTornTail(path: string): Promise<boolean> {
-  let text: string;
+  let handle;
   try {
-    text = await readFile(path, "utf8");
+    handle = await open(path, "r");
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
     throw error;
   }
-  if (text === "" || text.endsWith("\n")) return false;
-  const keep = text.lastIndexOf("\n") + 1;
-  await truncate(path, Buffer.byteLength(text.slice(0, keep), "utf8"));
-  return true;
+  // Reads back from the end only as far as the last newline: a recorded day runs to
+  // gigabytes, and the whole file never needs to be in memory to find its last line.
+  try {
+    const { size } = await handle.stat();
+    const chunk = Buffer.alloc(64 * 1024);
+    let end = size;
+    while (end > 0) {
+      const start = Math.max(0, end - chunk.length);
+      const { bytesRead } = await handle.read(chunk, 0, end - start, start);
+      const newline = chunk.subarray(0, bytesRead).lastIndexOf(0x0a);
+      if (newline >= 0) {
+        const keep = start + newline + 1;
+        if (keep === size) return false;
+        await truncate(path, keep);
+        return true;
+      }
+      end = start;
+    }
+    if (size === 0) return false;
+    await truncate(path, 0);
+    return true;
+  } finally {
+    await handle.close();
+  }
+}
+
+/** The time of a log's last complete event, or null if it has none. Reads only the tail. */
+export async function lastEventMs(path: string): Promise<number | null> {
+  let handle;
+  try {
+    handle = await open(path, "r");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+    throw error;
+  }
+  try {
+    const { size } = await handle.stat();
+    let length = Math.min(size, 64 * 1024);
+    while (length > 0) {
+      const buffer = Buffer.alloc(length);
+      await handle.read(buffer, 0, length, size - length);
+      const lines = buffer.toString("utf8").split("\n").filter((line) => line.trim() !== "");
+      // The first line in the window may be cut off; any line after it is whole.
+      const whole = length === size ? lines : lines.slice(1);
+      const last = whole[whole.length - 1];
+      if (last !== undefined) return decodeEvent(last).atMs;
+      if (length === size) return null;
+      length = Math.min(size, length * 4);
+    }
+    return null;
+  } finally {
+    await handle.close();
+  }
 }
 
 export type Sink = (line: string) => Promise<void>;

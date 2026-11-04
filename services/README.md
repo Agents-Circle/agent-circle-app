@@ -181,6 +181,24 @@ own. So:
   isn't documented as stable, and re-reading it on restart could move every replayed
   order to a different market. A start with changed rules refuses to replay.
 
+**Recorder** (`npm run arena:record`). Records the public feed before any season exists,
+for replay tests on real data and for the plan's "recorder running for at least 7 days
+before the start". A recorded day *is* an input log: the same lines and the same monotonic
+clock, one file per UTC day under `ARENA_RECORD_DIR`, gzipped once the day is over.
+
+- The coins are the top `ARENA_RECORD_TOP` (default 15) perps by open-interest notional at
+  first start, always including BTC, ETH and SOL, frozen in `recorder.json`. That's a
+  superset of the season's universe; the engine ignores coins outside a season's
+  instruments, so any season drawn from it replays. `ARENA_RECORD_COINS` overrides the
+  ranking.
+- Each day also gets a `.meta.json` with the `metaAndAssetCtxs` snapshot taken when it
+  opened (tick and lot rules, open interest).
+- `npm run arena:check-recording -- <day.jsonl[.gz]>` replays a day through the engine and
+  reports the longest book gap per coin. It fails exactly where a season replay would.
+- `deploy/agent-circle-recorder@.service` runs one instance per network under systemd.
+- Volume, mainnet, 15 coins: about 0.8 MB a minute plain and 0.1 MB gzipped, so about
+  150 MB a compressed day.
+
 **Order API** (`ARENA_PORT`, default 8787). It uses the vault's shape, not Hyperliquid's.
 
 | Call | What it does |
@@ -223,4 +241,44 @@ freshness.
   conservative guess, not a calibration.
 - The process has only been run against Hyperliquid's live feed for a smoke test, not
   for a season.
+- **Books arrive about every 5.4 s per coin** on the public WebSocket (measured
+  2026-11-04, mainnet, with 1 and with 15 coins: the server's own `time` steps by that
+  much). A taker order activating at `t_recv + 2 s` therefore fills against a book up to
+  about 5.4 s later, so the effective delay is 2–7.4 s, not 2 s.
+- **Book gaps come close to `staleBookMs`.** In the first 23 minutes recorded (mainnet, 15
+  coins) the longest gap between books for a coin was 9.9 s, against the 10 s stale-book
+  limit. That was the ~5.4 s cadence plus a 1–2.5 s reconnect. A slightly longer
+  reconnect will make the engine refuse to trade an asset for a few seconds. Raise the
+  limit, or publish it as expected behaviour, before the rules freeze.
 
+
+---
+
+## Elysium (read-only foundation)
+
+`src/elysium/` is groundwork for the optional Elysium/Ascend Arena bracket
+(`plans/arena-season0.md` §7). Whether that bracket runs is still Udoka's call, so none of
+it is wired into Season 0. It holds no key and sends nothing.
+
+`npm run elysium:pools` lists Ascend's launch pools on Elysium testnet: spot price, LP fee
+and liquidity. It also reports whether HyperCore (CoreWriter and the read precompiles) has
+reached the chain, which is the trigger for porting `HLAgentVault` (Option B in the
+Elysium design note).
+
+What it established on 2026-11-04, against the earlier notes:
+
+- **The pools are PancakeSwap Infinity CL pools, not Uniswap v4.** The `Initialize` and
+  `Swap` events have Infinity's shapes, and the pool manager sits behind a `Vault`. State is
+  read with `getSlot0` and `getLiquidity`. Fills will need Infinity's CL quoter, whose
+  Elysium address isn't known yet.
+- **Ascend's testnet was redeployed.** The live hook is `0x6d01…bf3d` and the quote token
+  is a new mock USDC, `0x84cc…cfe2`. The addresses recorded on 3 November are idle.
+- 16 pools so far, all test tokens priced around $0.000008 with a dynamic 1% LP fee, and
+  several with zero liquidity. There's nothing a bracket could meaningfully trade on
+  testnet yet.
+- **No HyperCore yet.** No code at CoreWriter, and the `0x809` precompile returns nothing.
+  On HyperEVM it answers with the L1 block number.
+
+Still to build, if the bracket goes ahead: a quote through the CL quoter (to sell, for
+liquidation-value marks), the sniper-tax schedule read from the hook, pool-age and tax
+filters, and a feed into the engine's input log.

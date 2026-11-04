@@ -6,14 +6,11 @@ import { useSiws } from "@/hooks/useSiws";
 import {
   getMyAgents,
   updateAgentDescription,
-  reportPerformance,
   type MyAgent,
 } from "@/lib/builderApi";
 import { isSessionInvalidError } from "@/lib/auth";
 import { AgentAvatar } from "./AgentAvatar";
 import { StatusBadge, MarketChip } from "./Badge";
-
-const SIX_HOURS_MS = 6 * 60 * 60 * 1000;
 
 function AgentCard({
   agent,
@@ -30,20 +27,6 @@ function AgentCard({
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
-
-  const [ret, setRet] = useState("");
-  const [winRate, setWinRate] = useState("");
-  const [drawdown, setDrawdown] = useState("");
-
-  const lastReported = agent.last_reported_at ? new Date(agent.last_reported_at).getTime() : 0;
-
-  // Captured once per mount rather than read during render. `Date.now()` in a render
-  // body is impure — the same props produce different output depending on when React
-  // happened to run, which is what breaks under concurrent rendering. A cooldown is a
-  // UI affordance and the list refetches after a report, so a per-mount reading is
-  // accurate whenever it matters.
-  const [mountedAt] = useState(() => Date.now());
-  const isInReportCooldown = lastReported > 0 && mountedAt - lastReported < SIX_HOURS_MS;
 
   const run = async (fn: () => Promise<void>, success: string) => {
     setBusy(true);
@@ -147,64 +130,9 @@ function AgentCard({
         )}
       </div>
 
-      {agent.status === "live" && (
-        <div className="mt-5 border-t pt-5" style={{ borderColor: "var(--border)" }}>
-          <div className="text-xs font-semibold" style={{ color: "var(--muted)" }}>
-            Report performance{" "}
-            <span className="font-normal">
-              (self-reported, marked as unverified until on-chain verification lands)
-            </span>
-          </div>
-          {isInReportCooldown ? (
-            <p className="mt-2 text-xs" style={{ color: "var(--muted)" }}>
-              Reported recently — next report available 6 hours after the last one.
-            </p>
-          ) : (
-            <div className="mt-3 flex flex-wrap items-end gap-3">
-              {[
-                { label: "Cumulative return %", value: ret, set: setRet, placeholder: "42.8" },
-                { label: "Win rate %", value: winRate, set: setWinRate, placeholder: "71" },
-                { label: "Drawdown % (≤ 0)", value: drawdown, set: setDrawdown, placeholder: "-8.4" },
-              ].map((f) => (
-                <div key={f.label}>
-                  <label className="text-[11px]" style={{ color: "var(--muted)" }}>
-                    {f.label}
-                  </label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={f.value}
-                    onChange={(e) => f.set(e.target.value)}
-                    placeholder={f.placeholder}
-                    className="tabular mt-1 block w-32 rounded-xl border bg-transparent px-3 py-2 text-sm outline-none"
-                    style={{ borderColor: "var(--border)", color: "var(--foreground)" }}
-                  />
-                </div>
-              ))}
-              <button
-                type="button"
-                disabled={busy || !ret || !winRate || !drawdown}
-                onClick={() =>
-                  run(async () => {
-                    await reportPerformance(token, agent.id, {
-                      returnPct: Number(ret),
-                      winRate: Number(winRate),
-                      drawdown: Number(drawdown),
-                    });
-                    setRet("");
-                    setWinRate("");
-                    setDrawdown("");
-                  }, "Performance reported.")
-                }
-                className="btn-primary px-4 py-2.5 text-xs"
-              >
-                {busy ? "Reporting…" : "Report"}
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-
+      {/* No self-reporting. Return, win rate and drawdown come from the indexer, which
+          computes them from on-chain fills; `report_performance` is revoked for every
+          browser role (migration 20261104000200). */}
       {message && (
         <p className="mt-3 text-xs" role="status" style={{ color: "var(--muted)" }}>
           {message}

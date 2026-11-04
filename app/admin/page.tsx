@@ -2,14 +2,12 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import {
-  removeStorageItem,
-  useStorageItem,
-  writeStorageItem,
-} from "@/hooks/useStorageItem";
+import { useAccount, useSignMessage } from "wagmi";
 import { supabase } from "@/lib/supabaseClient";
+import { vettingMessage, type VettingAction } from "@/lib/adminVetting";
 import { AgentAvatar } from "@/components/AgentAvatar";
 import { MarketChip } from "@/components/Badge";
+import { EvmWalletButton } from "@/components/EvmWalletButton";
 import { PageHeader } from "@/components/PageHeader";
 
 type VettingAgent = {
@@ -22,19 +20,15 @@ type VettingAgent = {
   builders: { name: string; wallet_address: string | null } | null;
 };
 
-/// Session storage, not local: an admin code should not outlive the browser session.
-const ADMIN_CODE_KEY = "ac-admin-code";
-
 export default function AdminPage() {
-  const [code, setCode] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
 
-  // Stored code is the single source of truth for being unlocked. Writing it notifies
-  // `useStorageItem`, so there is no separate `unlocked` state to keep in step — and no
-  // way for the two to disagree.
-  const savedCode = useStorageItem(ADMIN_CODE_KEY, "session");
-  const unlocked = savedCode !== null;
+  // A connected wallet only unlocks the view. Whether it is an admin is decided by the
+  // server on every action, against `ADMIN_WALLETS`; nothing here grants anything.
+  const { isConnected } = useAccount();
+  const { signMessageAsync } = useSignMessage();
+  const unlocked = isConnected;
 
   // react-query rather than an effect plus two pieces of state.
   //
@@ -62,38 +56,42 @@ export default function AdminPage() {
     },
   });
 
-  // Both derived from session storage rather than copied in by an effect. The effect
-  // version rendered the locked screen once and then unlocked itself, which flickers on
-  // every navigation back to this page, and is what React 19 flags as a cascading
-  // render.
-
-  const act = async (agent: VettingAgent, action: "approve" | "reject") => {
+  // Each action is signed on its own, naming the agent, so a signature cannot be reused
+  // to approve something else. `approve_agent` / `reject_agent` are service-role only
+  // (migration 20261104000200); the browser reaches them through the server route.
+  const act = async (agent: VettingAgent, action: VettingAction) => {
     setBusyId(agent.id);
     setMessage("");
 
-    const { data, error } = await supabase.rpc(
-      action === "approve" ? "approve_agent" : "reject_agent",
-      { p_agent_id: agent.id, p_code: savedCode ?? "" }
-    );
+    try {
+      const issuedAt = new Date().toISOString();
+      const signature = await signMessageAsync({
+        message: vettingMessage(action, agent.id, issuedAt),
+      });
+      const res = await fetch("/api/admin/vetting", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, agentId: agent.id, issuedAt, signature }),
+      });
+      const body = (await res.json().catch(() => ({}))) as { handled?: boolean; error?: string };
 
-    setBusyId(null);
-
-    if (error) {
-      if (error.message.includes("Invalid access code")) {
-        removeStorageItem(ADMIN_CODE_KEY, "session");
-        setMessage("Access code rejected — enter it again.");
-      } else {
-        setMessage(`Could not ${action} ${agent.name}: ${error.message}`);
+      if (!res.ok) {
+        setMessage(`Could not ${action} ${agent.name}: ${body.error ?? res.statusText}`);
+        return;
       }
-      return;
-    }
 
-    setMessage(
-      data
-        ? `${agent.name} ${action === "approve" ? "approved and now live" : "rejected and removed"}.`
-        : `${agent.name} was already handled elsewhere.`
-    );
-    loadQueue();
+      setMessage(
+        body.handled
+          ? `${agent.name} ${action === "approve" ? "approved and now live" : "rejected and removed"}.`
+          : `${agent.name} was already handled elsewhere.`
+      );
+      loadQueue();
+    } catch (e) {
+      // Most often the wallet's "user rejected" — not worth more than a line.
+      setMessage(e instanceof Error ? e.message.split("\n")[0] : `Could not ${action} ${agent.name}.`);
+    } finally {
+      setBusyId(null);
+    }
   };
 
   if (!unlocked) {
@@ -102,29 +100,11 @@ export default function AdminPage() {
         <PageHeader
           eyebrow="Admin"
           title="Vetting queue"
-          description="Enter the admin access code to review submitted agents."
+          description="Connect an admin wallet. Each approval or rejection is signed by it and checked against the server's admin list."
         />
-        <form
-          className="mt-6 flex gap-2"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (!code.trim()) return;
-            writeStorageItem(ADMIN_CODE_KEY, code.trim(), "session");
-            setCode("");
-          }}
-        >
-          <input
-            type="password"
-            value={code}
-            onChange={(e) => setCode(e.target.value)}
-            placeholder="Access code"
-            className="flex-1 rounded-xl border bg-transparent px-4 py-3 text-sm"
-            style={{ borderColor: "var(--border)", color: "var(--foreground)" }}
-          />
-          <button type="submit" className="btn-accent rounded-xl px-5 py-3">
-            Unlock
-          </button>
-        </form>
+        <div className="mt-6">
+          <EvmWalletButton />
+        </div>
         {message && (
           <p className="mt-4 text-sm" role="alert" style={{ color: "var(--negative)" }}>
             {message}
@@ -146,16 +126,7 @@ export default function AdminPage() {
           }
           description="Approving an agent sets it live on the leaderboard with standard fees (1.25% listing / 9% performance) unless custom fees were already set. Rejecting removes the submission."
         />
-        <button
-          type="button"
-          onClick={() => {
-            removeStorageItem(ADMIN_CODE_KEY, "session");
-            setCode("");
-          }}
-          className="btn-ghost px-4 py-2 text-xs"
-        >
-          Lock
-        </button>
+        <EvmWalletButton />
       </div>
 
       {message && (

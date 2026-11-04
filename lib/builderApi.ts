@@ -73,21 +73,6 @@ export async function updateAgentDescription(
   raiseIfError(error);
 }
 
-export async function reportPerformance(
-  token: string,
-  agentId: string,
-  input: { returnPct: number; winRate: number; drawdown: number }
-): Promise<void> {
-  const { error } = await supabase.rpc("report_performance", {
-    p_token: token,
-    p_agent_id: agentId,
-    p_return_pct: input.returnPct,
-    p_win_rate: input.winRate,
-    p_drawdown: input.drawdown,
-  });
-  raiseIfError(error);
-}
-
 export async function getMyListings(token: string): Promise<MyListing[]> {
   const { data, error } = await supabase.rpc("get_my_listings", { p_token: token });
   raiseIfError(error);
