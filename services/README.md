@@ -228,4 +228,9 @@ freshness.
   2026-11-04, mainnet, with 1 and with 15 coins: the server's own `time` steps by that
   much). A taker order activating at `t_recv + 2 s` therefore fills against a book up to
   about 5.4 s later, so the effective delay is 2–7.4 s, not 2 s.
+- **Book gaps come close to `staleBookMs`.** In the first 23 minutes recorded (mainnet, 15
+  coins) the longest gap between books for a coin was 9.9 s, against the 10 s stale-book
+  limit. That was the ~5.4 s cadence plus a 1–2.5 s reconnect. A slightly longer
+  reconnect will make the engine refuse to trade an asset for a few seconds. Raise the
+  limit, or publish it as expected behaviour, before the rules freeze.
 
