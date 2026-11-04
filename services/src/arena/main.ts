@@ -48,6 +48,11 @@ async function main(): Promise<void> {
 
   const db = database({ supabaseUrl: env("SUPABASE_URL"), supabaseServiceKey: env("SUPABASE_SERVICE_ROLE_KEY") });
   const season = await loadSeason(db, slug);
+  // The hash on the season page is the column; running anything else would score the
+  // season under rules nobody published.
+  if (season.rules_hash !== rulesHash(SEASON_0)) {
+    throw new Error(`season ${slug} publishes rules ${season.rules_hash ?? "(none)"}, but this build runs ${rulesHash(SEASON_0)}`);
+  }
 
   // Instruments come from the network once, at first start, and from the season file
   // after that. See `season.ts` for why the mapping must not be re-read.
