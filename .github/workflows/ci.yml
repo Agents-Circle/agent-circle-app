@@ -40,6 +40,25 @@ jobs:
       - run: npm run typecheck
       - run: npm test
 
+  agent-sdk:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/agent-sdk
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          # Same as services: Node runs the .ts files directly. The tests start the real
+          # Arena engine from services/src in-process, which needs only Node built-ins, so
+          # services' own dependencies are not installed here.
+          node-version: 24
+          cache: npm
+          cache-dependency-path: packages/agent-sdk/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+
   migrations:
     runs-on: ubuntu-latest
     services:
