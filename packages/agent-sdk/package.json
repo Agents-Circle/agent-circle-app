@@ -1,0 +1,27 @@
+{
+  "name": "@agent-circle/agent-sdk",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Clients for Agent Circle agents: the Circle Arena paper API and HLAgentVault on HyperEVM.",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "arena:local": "node --disable-warning=ExperimentalWarning scripts/local-arena.ts",
+    "example:perp": "node --disable-warning=ExperimentalWarning examples/perp-quote.ts",
+    "testnet:check": "node --disable-warning=ExperimentalWarning scripts/testnet-check.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "node --disable-warning=ExperimentalWarning --test 'src/**/*.test.ts' 'examples/**/*.test.ts'"
+  },
+  "dependencies": {
+    "viem": "^2.37.6"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.9.0"
+  }
+}
