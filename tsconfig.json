@@ -13,6 +13,9 @@
     "esModuleInterop": true,
     "module": "esnext",
     "moduleResolution": "bundler",
+    // For the few lib modules `npm test` runs under plain Node, whose relative imports
+    // must name the real `.ts` file. The bundler resolves those the same as any other.
+    "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
     "jsx": "react-jsx",

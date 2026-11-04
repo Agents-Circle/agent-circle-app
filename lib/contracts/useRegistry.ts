@@ -3,7 +3,13 @@
 import { useMemo } from "react";
 import type { Address, Hex } from "viem";
 import { erc20Abi, maxUint256 } from "viem";
-import { useAccount, useReadContract, useReadContracts, useWriteContract } from "wagmi";
+import {
+  useAccount,
+  useBytecode,
+  useReadContract,
+  useReadContracts,
+  useWriteContract,
+} from "wagmi";
 
 import { AgentRegistryAbi } from "./abis";
 import { deploymentFor } from "./addresses";
@@ -163,8 +169,13 @@ export type ListingState = {
   metadataHash: Hex;
 };
 
-export function useListing(id?: Hex) {
-  const { chainId } = useAccount();
+/**
+ * One listing. Reads the connected wallet's chain unless `onChain` names one, which is how
+ * the admin page reads the deployment it exports for whatever chain the wallet is on.
+ */
+export function useListing(id?: Hex, onChain?: number) {
+  const { chainId: walletChain } = useAccount();
+  const chainId = onChain ?? walletChain;
   const registry = chainId ? registryFor(chainId) : null;
 
   const query = useReadContract({
@@ -172,6 +183,7 @@ export function useListing(id?: Hex) {
     address: registry ?? undefined,
     functionName: "getListing",
     args: id ? [id] : undefined,
+    chainId,
     query: { enabled: Boolean(registry && id) },
   });
 
@@ -198,6 +210,37 @@ export function useListing(id?: Hex) {
   }, [query.data, id]);
 
   return { ...query, state };
+}
+
+/**
+ * The registry's governance account on `chainId`, and whether it is a contract.
+ *
+ * On mainnet it must be a Safe multisig. On testnet it is an EOA, which no Safe can act
+ * for, so a page that exports governance calls has to say which of the two it is.
+ */
+export function useGovernance(chainId: number) {
+  const registry = registryFor(chainId);
+
+  const { data: address, ...query } = useReadContract({
+    abi: AgentRegistryAbi,
+    address: registry ?? undefined,
+    functionName: "governance",
+    chainId,
+    query: { enabled: Boolean(registry) },
+  });
+
+  const { data: code } = useBytecode({
+    address,
+    chainId,
+    query: { enabled: Boolean(address) },
+  });
+
+  return {
+    ...query,
+    address,
+    /** `undefined` until the code has been read. */
+    isContract: code === undefined ? undefined : code !== null && code !== "0x",
+  };
 }
 
 /** The builder's USDC, and what the registry is allowed to take for a bond. */
