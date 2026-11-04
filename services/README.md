@@ -181,6 +181,24 @@ own. So:
   isn't documented as stable, and re-reading it on restart could move every replayed
   order to a different market. A start with changed rules refuses to replay.
 
+**Recorder** (`npm run arena:record`). Records the public feed before any season exists,
+for replay tests on real data and for the plan's "recorder running for at least 7 days
+before the start". A recorded day *is* an input log: the same lines and the same monotonic
+clock, one file per UTC day under `ARENA_RECORD_DIR`, gzipped once the day is over.
+
+- The coins are the top `ARENA_RECORD_TOP` (default 15) perps by open-interest notional at
+  first start, always including BTC, ETH and SOL, frozen in `recorder.json`. That's a
+  superset of the season's universe; the engine ignores coins outside a season's
+  instruments, so any season drawn from it replays. `ARENA_RECORD_COINS` overrides the
+  ranking.
+- Each day also gets a `.meta.json` with the `metaAndAssetCtxs` snapshot taken when it
+  opened (tick and lot rules, open interest).
+- `npm run arena:check-recording -- <day.jsonl[.gz]>` replays a day through the engine and
+  reports the longest book gap per coin. It fails exactly where a season replay would.
+- `deploy/agent-circle-recorder@.service` runs one instance per network under systemd.
+- Volume, mainnet, 15 coins: about 0.8 MB a minute plain and 0.1 MB gzipped, so about
+  150 MB a compressed day.
+
 **Order API** (`ARENA_PORT`, default 8787). It uses the vault's shape, not Hyperliquid's.
 
 | Call | What it does |
@@ -206,4 +224,8 @@ freshness.
   conservative guess, not a calibration.
 - The process has only been run against Hyperliquid's live feed for a smoke test, not
   for a season.
+- **Books arrive about every 5.4 s per coin** on the public WebSocket (measured
+  2026-11-04, mainnet, with 1 and with 15 coins: the server's own `time` steps by that
+  much). A taker order activating at `t_recv + 2 s` therefore fills against a book up to
+  about 5.4 s later, so the effective delay is 2–7.4 s, not 2 s.
 

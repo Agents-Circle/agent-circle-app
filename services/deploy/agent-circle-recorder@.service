@@ -1,0 +1,30 @@
+# systemd user unit for the Arena market-data recorder. One instance per network:
+#
+#   cp deploy/agent-circle-recorder@.service ~/.config/systemd/user/
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now agent-circle-recorder@mainnet
+#
+# WorkingDirectory should be a checkout nobody switches branches in (a detached
+# worktree works). The process needs Node 22.18+ and no npm dependencies, holds no key,
+# and writes only under ARENA_RECORD_DIR. Per-instance overrides (ARENA_RECORD_TOP,
+# ARENA_RECORD_COINS) go in the optional EnvironmentFile.
+
+[Unit]
+Description=Agent Circle Arena market-data recorder (%i)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/agents-circle/.runtime/arena-recorder/services
+Environment=NETWORK=%i
+Environment=ARENA_RECORD_DIR=%h/agents-circle/arena-data/recorder/%i
+EnvironmentFile=-%h/agents-circle/arena-data/recorder/%i.env
+ExecStart=/usr/bin/env node --disable-warning=ExperimentalWarning src/arena/record.ts
+Restart=always
+RestartSec=5
+KillSignal=SIGINT
+TimeoutStopSec=15
+
+[Install]
+WantedBy=default.target
