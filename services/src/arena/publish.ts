@@ -22,6 +22,9 @@ export type ScoreRow = {
   score: string;
   turnover_ratio: string;
   fees_paid: string;
+  /** The engine's rank, with its tie-breaks. The leaderboard reads this, never re-ranks. */
+  rank: number;
+  eligible: boolean;
 };
 
 export type RankedEntry = { entryId: string; rank: number; score: Score };
@@ -38,7 +41,7 @@ export function rankEntries(engine: ArenaEngine, rules: SeasonRules): RankedEntr
 
 /** One row per entry for `day`. The day is the UTC day of the engine's clock. */
 export function scoreRows(ranked: readonly RankedEntry[], day: string): ScoreRow[] {
-  return ranked.map(({ entryId, score: s }) => ({
+  return ranked.map(({ entryId, rank, score: s }) => ({
     entry_id: entryId,
     day,
     net_return_bps: Number(s.netReturnBps),
@@ -46,6 +49,8 @@ export function scoreRows(ranked: readonly RankedEntry[], day: string): ScoreRow
     score: scoreNumeric(s.scoreBps),
     turnover_ratio: ratioNumeric(s.turnover),
     fees_paid: s.feesPaid.toString(),
+    rank,
+    eligible: s.eligible,
   }));
 }
 
@@ -58,12 +63,12 @@ export async function publishScores(db: SupabaseClient, engine: ArenaEngine, rul
   return rows.length;
 }
 
-export type SeasonRow = { id: number; slug: string; mode: string; starts_at: string; ends_at: string; status: string };
+export type SeasonRow = { id: number; slug: string; mode: string; starts_at: string; ends_at: string; status: string; rules_hash: string | null };
 
 export async function loadSeason(db: SupabaseClient, slug: string): Promise<SeasonRow> {
   const { data, error } = await db
     .from("seasons")
-    .select("id, slug, mode, starts_at, ends_at, status")
+    .select("id, slug, mode, starts_at, ends_at, status, rules_hash")
     .eq("slug", slug)
     .maybeSingle();
   if (error) throw new Error(`loading season ${slug}: ${error.message}`);

@@ -16,7 +16,8 @@
     "arena:check-recording": "node --disable-warning=ExperimentalWarning src/arena/check-recording.ts",
     "typecheck": "tsc --noEmit",
     "test": "node --disable-warning=ExperimentalWarning --test 'src/**/*.test.ts'",
-    "elysium:pools": "node --disable-warning=ExperimentalWarning src/elysium/pools.ts"
+    "elysium:pools": "node --disable-warning=ExperimentalWarning src/elysium/pools.ts",
+    "arena:admin": "node --disable-warning=ExperimentalWarning src/arena/admin-cli.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.8",

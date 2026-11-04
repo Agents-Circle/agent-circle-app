@@ -107,7 +107,9 @@ test("score rows carry the published numeric formats", async () => {
     assert.match(row.turnover_ratio, /^-?\d+\.\d{4}$/);
     assert.match(row.fees_paid, /^\d+$/);
     assert.equal(row.day, "2026-11-10");
+    assert.equal(typeof row.eligible, "boolean");
   }
+  assert.deepEqual(rows.map((r) => r.rank), [1, 2]);
 });
 
 test("open() resumes from the file log, and live stamps never precede the last logged event", async () => {

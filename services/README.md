@@ -213,8 +213,25 @@ Authenticate with `Authorization: Bearer <key>`. Only `sha256(key)` is stored, i
 reloads every minute. An entry joins the season on its first authenticated call. Each
 entry gets 20 requests per 10 seconds, and refused requests never reach the log.
 
+**Running a season** (`npm run arena:admin`, service-role key in the environment). Only
+operators and the Arena process hold that key, so season rows and entry keys are issued
+from here, never from a browser:
+
+| Command | What it does |
+|---|---|
+| `season create --slug s0 --name … --number 0 --starts … --ends …` | Inserts a `paper` season in `draft`, with `rules_hash` set to the SHA-256 of the rules this build runs and the rules written out in `scoring_notes`. |
+| `season status --slug s0 --to open` | Moves `draft → open → running → scored → closed`, one step at a time. Opening refuses a season created under other rules. |
+| `season show --slug s0` | Prints the row and its entries (never a key or hash). |
+| `entry issue --season s0 --wallet 0x… --name …` | Creates an `active` entry and prints its API key once, on stdout. Only `sha256(key)` is stored. |
+| `entry rotate --season s0 --entry <id>` | Replaces the key; the old one stops working at the next entry reload. |
+| `entry disqualify --season s0 --entry <id> --reason …` | Drops the entry from the season and the leaderboard. The reason is public. |
+
+`npm run arena` refuses to start a season whose `rules_hash` differs from the rules it
+runs, so the hash on the season page is always the one being scored.
+
 **Scores** are upserted into `scores` every `ARENA_PUBLISH_MS`, one row per entry per UTC
-day. They're a projection of the engine, never its state, so a lost write costs only
+day, with the engine's rank and prize eligibility. `/arena/<slug>` in the app reads them
+through the `arena_leaderboard` view and never re-ranks. They're a projection of the engine, never its state, so a lost write costs only
 freshness.
 
 **What isn't verified yet:**
