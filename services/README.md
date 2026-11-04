@@ -199,6 +199,22 @@ clock, one file per UTC day under `ARENA_RECORD_DIR`, gzipped once the day is ov
 - Volume, mainnet, 15 coins: about 0.8 MB a minute plain and 0.1 MB gzipped, so about
   150 MB a compressed day.
 
+**House baselines** (`src/arena/baselines.ts`). These are the plan's "cash, BTC long at the
+cap, and random entries". They're published and never prize-eligible (`isHouseEntry`). They're
+inputs, not engine code. `withHouseEntries` merges `house:*` registrations, orders and cancels
+into a market log in time order, priced from the books already in it. So the engine treats
+them like any entrant, and a replay reproduces them without the script. A published seed
+drives them. Like a vault, the scripts never see a fill: closes are reduce-only, and every
+order is cancelled once it has had its chance.
+
+- `npm run arena:baselines -- <day.jsonl[.gz]> [--coins BTC,ETH,SOL] [--seed house-0]
+  [--out season.jsonl.gz]` runs them over a recorded day. It prints every fill, the ranking
+  and a SHA-256 over every output event, which must match on every run and machine. `--out`
+  writes the merged season log and its `.season.json` for `arena:replay`.
+- `baselines.test.ts` replays them over four committed minutes of mainnet
+  (`src/arena/fixtures/`). It pins every fill, fee, mark and rank, twice, and again
+  through `ArenaRuntime.open`.
+
 **Order API** (`ARENA_PORT`, default 8787). It uses the vault's shape, not Hyperliquid's.
 
 | Call | What it does |
@@ -247,9 +263,26 @@ freshness.
   about 5.4 s later, so the effective delay is 2–7.4 s, not 2 s.
 - **Book gaps come close to `staleBookMs`.** In the first 23 minutes recorded (mainnet, 15
   coins) the longest gap between books for a coin was 9.9 s, against the 10 s stale-book
-  limit. That was the ~5.4 s cadence plus a 1–2.5 s reconnect. A slightly longer
-  reconnect will make the engine refuse to trade an asset for a few seconds. Raise the
-  limit, or publish it as expected behaviour, before the rules freeze.
+  limit. That was the ~5.4 s cadence plus a 1–2.5 s reconnect. Raise the limit, or
+  publish it as expected behaviour, before the rules freeze.
+- **Nothing in the engine reads `staleBookMs` yet.** The plan says orders on an asset whose
+  book is more than 10 s old are held, and that gaps are logged and published. Today a
+  pending order simply waits for the next book, whatever the gap. A resting order keeps
+  filling on prints, a submission is risk-checked against the last mark, and no `gap` event
+  is emitted. So a gap over 10 s changes no output.
+- **Displayed depth limits the thinner coins.** At a 25% share, the top ask level of BTC,
+  ETH and SOL usually takes a cap-sized (1,200 USDC) order whole (at worst it walks 13
+  levels). On LIT, VVV, ZRO, UNI and ENA the
+  top level holds about 50–130 USDC at 25%, and the 20 levels Hyperliquid sends sometimes
+  can't hold 1,200 USDC at all (measured 2026-11-04, mainnet).
+- **Every (re)subscribe replays recent trades.** On connect, Hyperliquid's `trades` channel
+  sends about the last 27 prints per coin again, stamped with their original `time`. On
+  2026-11-04 (06:29–17:37 UTC, 1.27 M prints, 15 coins) that gave 2,348 duplicate
+  `(coin, tid)` prints across 7 reconnects. The engine treats each one as a new print, so a
+  resting order can fill twice on one trade, or on a trade from before it was placed.
+  Deduplicate by `(coin, tid)` in the engine: the recorded days already hold the
+  duplicates, and a feed-side filter would not fix their replays. It changes outputs, so
+  it's a rules change to make before the freeze.
 
 
 ---
