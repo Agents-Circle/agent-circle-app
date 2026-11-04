@@ -12,6 +12,8 @@
     "keeper": "node --disable-warning=ExperimentalWarning src/keeper/main.ts",
     "arena": "node --disable-warning=ExperimentalWarning src/arena/main.ts",
     "arena:replay": "node --disable-warning=ExperimentalWarning src/arena/replay.ts",
+    "arena:record": "node --disable-warning=ExperimentalWarning src/arena/record.ts",
+    "arena:check-recording": "node --disable-warning=ExperimentalWarning src/arena/check-recording.ts",
     "typecheck": "tsc --noEmit",
     "test": "node --disable-warning=ExperimentalWarning --test 'src/**/*.test.ts'"
   },
