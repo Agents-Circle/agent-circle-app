@@ -63,6 +63,36 @@ export async function publishScores(db: SupabaseClient, engine: ArenaEngine, rul
   return rows.length;
 }
 
+/**
+ * Would starting now restart a season that has already published results?
+ *
+ * The condition, named so it can be tested and so the reason survives in one place:
+ * published scores prove the season has run, because only the Arena process writes them.
+ * An empty replay alongside them means the input log is gone.
+ *
+ * Not symmetric. Scores without a log is a lost log and must stop a start. A log without
+ * scores is just a season that has not reached its first minute mark, which is normal.
+ */
+export function logIsLost(replayed: number, publishedScores: number): boolean {
+  return replayed === 0 && publishedScores > 0;
+}
+
+/**
+ * How many daily scores this season has already published.
+ *
+ * Used as proof that the season has run before. `scores` is keyed on `entry_id`, so this
+ * goes through `entries` to reach the season, and `head: true` asks for the count without
+ * the rows.
+ */
+export async function publishedScoreCount(db: SupabaseClient, seasonId: number): Promise<number> {
+  const { count, error } = await db
+    .from("scores")
+    .select("entry_id, entries!inner(season_id)", { count: "exact", head: true })
+    .eq("entries.season_id", seasonId);
+  if (error) throw new Error(`counting published scores: ${error.message}`);
+  return count ?? 0;
+}
+
 export type SeasonRow = { id: number; slug: string; mode: string; starts_at: string; ends_at: string; status: string; rules_hash: string | null };
 
 export async function loadSeason(db: SupabaseClient, slug: string): Promise<SeasonRow> {
