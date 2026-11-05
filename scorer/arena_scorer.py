@@ -85,7 +85,7 @@ SEASON_0 = {
     "maxDrawdownBps": 1_500,  # [rules] 15% from the high-water mark
     "maxOpenOrders": 8,  # [rules]
     "orderLifetimeMs": HOUR_MS,  # [rules] 1 hour
-    "staleBookMs": 10_000,  # [rules] 10 seconds. Not applied: see D1.
+    "staleBookMs": 10_000,  # [rules] 10 seconds, applied to fills and marks alike.
     "drawdownWeightBps": BPS,  # [rules] lambda = 1
     "minActiveDays": 10,  # [rules] fills on 10 distinct UTC days
     "minPresenceBps": 2_000,  # [rules] 20% of minute marks
@@ -488,7 +488,8 @@ class Engine:
 
     def _mark_prices(self, t: int, at_minute: bool = False) -> dict[int, int]:
         # [engine] The mark is the latest asset context's markPx, whatever its age; only an
-        # asset that has never had a context falls back to the latest book's mid (D3).
+        # asset that has never had a context falls back to the latest book's mid (D3),
+        # also whatever its age.
         marks: dict[int, int] = {}
         for asset in self.instruments:
             context = self.contexts.get(asset)
@@ -498,7 +499,10 @@ class Engine:
             book = self.books.get(asset)
             if book is not None and book[2] and book[3]:
                 marks[asset] = (book[2][0][0] + book[3][0][0]) // 2
-                if at_minute and t - book[0] > self.rules["staleBookMs"]:
+                # [engine] Not refused: `staleBookMs` governs what is traded against, not
+                # how an account is valued. Still counted, because whether a recorded
+                # minute mark should accept an old mid is an open question (D1).
+                if at_minute and t - book[1] > self.rules["staleBookMs"]:
                     self.audit["d1_mark_from_book_older_than_staleBookMs"] += 1
         return marks
 
@@ -729,8 +733,16 @@ class Engine:
         asset = instrument.asset
         exchange_time = _int(book, "timeMs", event)
         bids, asks = _levels(book, "bids", event), _levels(book, "asks", event)
+        # [engine] Stored even when stale: still the best view there is, and staleness is
+        # judged at the time of use.
         self.books[asset] = (t, exchange_time, bids, asks)
-        stale = t - exchange_time > self.rules["staleBookMs"]
+        # [rules] "A book older than 10 seconds is not traded against; orders on that asset
+        # wait." The age is the data's, `t - exchange_time`, so a book that took 15 s to
+        # reach us is 15 s old on arrival. Orders are not cancelled: the first book inside
+        # the limit activates and fills them.
+        if t - exchange_time > self.rules["staleBookMs"]:
+            self.audit["stale_book_not_traded_against"] += 1
+            return
 
         for entry in self.entries.values():
             exit_ = entry.exits.get(asset) if entry.exits else None
@@ -739,8 +751,6 @@ class Engine:
                 want = self._reducible(entry, asset, exit_.is_buy, 1 << 127)
                 for px, sz in self._take(exit_.is_buy, exit_.limit_px, want, asks if exit_.is_buy else bids, instrument):
                     self._fill(entry, None, asset, exit_.is_buy, px, sz, "taker", t)
-                    if stale:
-                        self.audit["d1_taker_fill_on_book_older_than_staleBookMs"] += 1
 
             if not entry.live[asset]:
                 continue
@@ -751,10 +761,7 @@ class Engine:
                     # [plan] says the first book "with timestamp >= t_recv + D". The engine
                     # compares receive times only, so this book qualifies there (D2).
                     self.audit["d2_activated_on_book_stamped_before_activation"] += 1
-                fills_before = entry.fills
                 self._activate(entry, working, bids, asks, instrument, t)
-                if stale and entry.fills > fills_before:
-                    self.audit["d1_taker_fill_on_book_older_than_staleBookMs"] += entry.fills - fills_before
 
     def _activate(self, entry: Entry, working: Working, bids: list, asks: list, instrument: Instrument, t: int) -> None:
         order = working.order
@@ -797,8 +804,13 @@ class Engine:
         asset = instrument.asset
         trade_px, trade_sz = _big(trade, "px", event), _big(trade, "sz", event)
         share = self.rules["depthShareBps"]
+        # [rules] A print is not a book: a maker fill while the asset's book is stale is
+        # trading on an asset nobody can currently see. Measured on the book's own clock,
+        # as above, not on how long we have held it.
         book = self.books.get(asset)
-        stale = book is None or t - book[0] > self.rules["staleBookMs"]
+        if book is None or t - book[1] > self.rules["staleBookMs"]:
+            self.audit["stale_book_not_traded_against"] += 1
+            return
 
         for entry in self.entries.values():
             if not entry.live[asset]:

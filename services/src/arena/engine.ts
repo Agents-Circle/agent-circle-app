@@ -334,13 +334,13 @@ export class ArenaEngine {
         marks.set(asset, context.markPx);
         continue;
       }
-      // Falling back to the book's mid for an asset that has never had a context, and
-      // only while that book is inside the limit. A stale mid feeds drawdown, auto-pause
-      // and the performance fee, so it is the worst of the three places to accept one;
-      // without a mark the caller emits `no_mark` and the position is left unvalued.
+      // Deliberately not filtered by `staleBookMs`. The published rule is about what is
+      // traded against, and `#submit` values exposure through this map: refusing a mark
+      // here would reject orders outright during a feed gap, when the rule says they
+      // wait. Whether a *recorded* minute mark should accept an old mid is a separate
+      // question, and a live one - the independent scorer counts it as part of D1.
       const book = this.#books.get(asset);
-      if (book === undefined || this.#stale(book, timeMs)) continue;
-      const mid = midPx(book);
+      const mid = book ? midPx(book) : null;
       if (mid !== null) marks.set(asset, mid);
     }
     return marks;

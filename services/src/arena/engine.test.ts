@@ -166,25 +166,36 @@ test("a print does not fill a resting order while the asset's book is stale", ()
   assert.deepEqual(of("gap").map((e) => e.what), ["stale_book"]);
 });
 
-test("a mark is never taken from a stale book mid", () => {
-  // No `ctx` at all, so the book mid is the only mark there is. The entry must hold a
-  // position for a missing mark to matter, so it buys first. The first minute marks
-  // against a one-second-old book; by the second the book is a minute old.
-  const { of } = run([
+test("the rule governs trading, not valuation: a stale book still marks and still accepts", () => {
+  // The distinction matters. `#markPrices` also values exposure for the cap check at
+  // submit, so refusing a stale mid there would *reject* orders during a feed gap - and
+  // the published rule says they wait. An old mid is kept for valuing; it is only
+  // trading against the book that stops.
+  const { of, engine } = run([
     { kind: "register", atMs: T0 - 1_000, entryId: "e1" },
     book(T0, 99_990, 100_010),
-    { kind: "submit", atMs: T0 + 1_000, entryId: "e1", order: order() },
+    // Small, because a filled order keeps its reservation until it is cancelled, as in a
+    // vault: a full-size first order would use up the cap and the second would be
+    // refused for that reason instead.
+    { kind: "submit", atMs: T0 + 1_000, entryId: "e1", order: order({ sz: size(0.001) }) },
     book(T0 + 3_000, 99_990, 100_010),
-    book(T0 + MINUTE - 1_000, 99_990, 100_010),
-    { kind: "clock", atMs: T0 + MINUTE },
-    { kind: "clock", atMs: T0 + 2 * MINUTE },
+    // Nothing further arrives for this asset: the book ages well past the limit.
+    { kind: "submit", atMs: T0 + 5 * MINUTE, entryId: "e1", order: order({ cloid: 2n, sz: size(0.001) }) },
+    { kind: "clock", atMs: T0 + 6 * MINUTE },
   ]);
-  assert.equal(of("fill").length, 1, "the entry needs a position for a mark to matter");
+  assert.equal(of("fill").length, 1, "the first order should have filled on a fresh book");
   assert.deepEqual(
-    of("gap").filter((e) => e.what === "no_mark").map((e) => e.atMs),
-    [T0 + 2 * MINUTE],
-    "the second minute should have no mark, and the first should have one"
+    of("rejected").map((e) => e.reason),
+    [],
+    "an order was rejected during a feed gap; NoMarkPrice here would mean the rule had reached valuation"
   );
+  assert.equal(of("accepted").length, 2, "the second order should be accepted and wait");
+
+  // And the position is still valued, from the old mid, rather than dropping to zero.
+  const snapshot = engine.snapshot("e1");
+  assert.ok(snapshot !== null);
+  assert.ok(snapshot.equity > 0n);
+  assert.deepEqual(of("gap").filter((e) => e.what === "no_mark"), []);
 });
 
 test("reduce-only is clamped to the open position", () => {
