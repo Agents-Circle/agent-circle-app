@@ -245,10 +245,15 @@ function edgeCases() {
   season.add(btcBook(25));
   season.add(btcBook(55));
   season.add(btcBook(245, 15_000)); // received fine, but stamped 15 s earlier by the exchange
+  season.add(btcBook(246)); // and the fresh one the orders that waited for it fill on
   season.add(solBook(1005)); // the spike arrives
   season.add(solBook(1025, [[521, "8"], [522, "4"]])); // too thin to finish the exit at once
   season.add(book(at(7025), "SOL", [[209, "8"]], [])); // no asks: no mid, so no SOL mark
   season.add(btcBook(1025));
+  // The per-minute books leave 3700 forty seconds after the last one, and `expiry_edge`
+  // fills on a print there. Without a fresh book the stale-book rule refuses that fill
+  // and the expiry boundary below stops being tested at all.
+  season.add(btcBook(3699));
   season.add(btcBook(7025));
 
   // Registration: one before the season, two in the same millisecond.
@@ -275,7 +280,7 @@ function edgeCases() {
   // Closing with a plain order is refused: its notional adds to aggregate exposure.
   season.add(submit(at(45), "ioc", 6, BTC, "sell", "0.009", 99_980, TIF.ioc));
   season.add(submit(at(50), "ioc", 7, BTC, "sell", "0.009", 99_980, TIF.ioc, true));
-  season.add(submit(at(200), "ioc", 8, BTC, "sell", "0.001", 99_900, TIF.ioc, true)); // fills on the stale book
+  season.add(submit(at(200), "ioc", 8, BTC, "sell", "0.001", 99_900, TIF.ioc, true)); // waits out the stale book
 
   // alo: one would cross, one rests and fills, then the open-order limit.
   season.add(submit(at(60), "alo", 1, BTC, "buy", "0.002", 100_010, TIF.alo));

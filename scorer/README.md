@@ -43,12 +43,14 @@ if they change, so an engine change that alters results shows up as a fixture di
 Sources, in order of authority: the published page (`builders/arena-rules-and-scoring.mdx`),
 `SEASON_0` in `rules.ts`, then plan §1 (`handbook/plans/arena-season0.md`). The scorer
 reproduces the engine in every case below, so it can check the engine's arithmetic. These
-are for a decision, not fixed here. The code tags each behaviour taken from the engine
-rather than a published source as `[engine]`.
+are for a decision, not fixed here — except D1, which was decided on 5 November and is now
+applied in both implementations; its remaining half is listed as D1b. The code tags each
+behaviour taken from the engine rather than a published source as `[engine]`.
 
 | | Published / plan | Engine | Seen in fixtures |
 | --- | --- | --- | --- |
-| **D1** | "A book older than 10 seconds is not traded against; orders on that asset wait" (page). "Orders on it are held" (plan). | `staleBookMs` is never read. Takers fill on any book as it arrives, whatever its exchange timestamp; resting orders fill on prints however old the last book is; marks use a book mid of any age. | edge: 1 taker fill on a book stamped 15 s old, 1 maker fill, 209 marks from an old book |
+| **D1** ✅ *fills* | "A book older than 10 seconds is not traded against; orders on that asset wait" (page). "Orders on it are held" (plan). | **Applied to trading, 5 November.** A book is stale when `receiveTime − book.timeMs` exceeds the limit: no taker fill on a book already that old on arrival, and no maker fill on a print while the asset's book is. Orders are not cancelled and keep their place. | recorded: never binds (669 books, oldest 1,375 ms); edge: 5 refusals |
+| **D1b** | The page says nothing about the mark. | **Still open.** Valuing an account is not trading, so a mark still uses a book mid of any age, and so does the cap check at submit — refusing a stale mid there would *reject* orders during a feed gap, which is the opposite of "they wait". Whether a *recorded* minute mark should accept an old mid is the decision. | edge: 209 marks from an old book |
 | **D2** | The first book "with timestamp ≥ t_recv + D" (plan). | Receive times only. A book received after activation counts even if Hyperliquid stamped it earlier. | recorded: 2 activations |
 | **D3** | Equity "at mark". The mark source is not published. | The latest `activeAssetCtx.markPx`, however old; the book mid only for an asset that has never had a context. **A position with no mark is valued at zero.** | edge: `sol_long` takes a 977 bps drawdown from one minute with no SOL ask. A feed gap alone can push an entry past the 15% auto-pause |
 | **D4** | "An entry is ranked only if it meets both minimums." | Every entry is ranked; `scores.rank` is written for ineligible entries too and the leaderboard reads it. | long: `holder` is rank 1 and not eligible. `--json` gives `prizeRank` |

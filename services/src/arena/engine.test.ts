@@ -12,6 +12,7 @@ const size = (value: number) => BigInt(Math.round(value * 1e8));
 const usd = (whole: number) => BigInt(whole) * 1_000_000n;
 
 const T0 = Date.UTC(2026, 10, 10);
+const MINUTE = 60_000;
 const BTC: Instrument = { coin: "BTC", asset: 0, szDecimals: 5 };
 
 function book(atMs: number, bid: number, ask: number, depth = 2): InputEvent {
@@ -22,6 +23,12 @@ function book(atMs: number, bid: number, ask: number, depth = 2): InputEvent {
     asks: [{ px: px(ask), sz: size(depth) }],
   };
   return { kind: "book", atMs, book: b };
+}
+
+/** A book that reached us `ageMs` after Hyperliquid stamped it. */
+function staleBook(atMs: number, ageMs: number, bid: number, ask: number, depth = 2): InputEvent {
+  const event = book(atMs, bid, ask, depth) as Extract<InputEvent, { kind: "book" }>;
+  return { ...event, book: { ...event.book, timeMs: atMs - ageMs } };
 }
 
 function mark(atMs: number, price: number): InputEvent {
@@ -112,6 +119,83 @@ test("a resting bid fills as maker on a print through it, at its own price", () 
   assert.equal(fills.length, 1, "a touch at the limit earns nothing");
   assert.equal(fills[0]!.px, px(99_950));
   assert.equal(fills[0]!.liquidity, "maker");
+});
+
+test("a book that is already stale on arrival is not traded against", () => {
+  const { of } = run([
+    ...opening,
+    { kind: "submit", atMs: T0 + 1_000, entryId: "e1", order: order() },
+    // Crosses the ask, so it would fill at once on a book inside the limit.
+    staleBook(T0 + 20_000, SEASON_0.staleBookMs + 1, 99_990, 100_010),
+  ]);
+  assert.equal(of("fill").length, 0, "a 10.001s-old book filled an order");
+  assert.deepEqual(of("gap").map((e) => e.what), ["stale_book"]);
+  assert.equal(of("order_done").length, 0, "the order should wait, not be cancelled");
+});
+
+test("the order waits, and fills on the first book inside the limit", () => {
+  const { of } = run([
+    ...opening,
+    { kind: "submit", atMs: T0 + 1_000, entryId: "e1", order: order() },
+    staleBook(T0 + 20_000, SEASON_0.staleBookMs + 1, 99_990, 100_010),
+    staleBook(T0 + 21_000, SEASON_0.staleBookMs, 99_990, 100_010), // exactly at the limit: fresh
+  ]);
+  assert.equal(of("fill").length, 1, "the order did not resume on a fresh book");
+  assert.equal(of("fill")[0]!.px, px(100_010));
+});
+
+test("a print does not fill a resting order while the asset's book is stale", () => {
+  // Through the limit, not at it: a touch earns nothing, as the test above establishes.
+  const trade = (atMs: number, tid: number): InputEvent => ({
+    kind: "trade",
+    atMs,
+    trade: { coin: "BTC", timeMs: atMs, px: px(99_940), sz: size(1), side: "A", tid },
+  });
+  // `l2Book` stalling while `trades` keep arriving: the book below is the last one, and
+  // the prints walk through the limit without it ever being replaced.
+  const { of } = run([
+    ...opening,
+    { kind: "submit", atMs: T0 + 1_000, entryId: "e1", order: order({ limitPx: px(99_950), sz: size(0.005) }) },
+    book(T0 + 3_000, 99_990, 100_010),
+    trade(T0 + 3_000 + SEASON_0.staleBookMs, 1), // the book is exactly at the limit
+    trade(T0 + 3_000 + SEASON_0.staleBookMs + 1, 2), // and now past it
+  ]);
+  const fills = of("fill");
+  assert.equal(fills.length, 1, "a print filled against a book past the stale limit");
+  assert.equal(fills[0]!.atMs, T0 + 3_000 + SEASON_0.staleBookMs);
+  assert.deepEqual(of("gap").map((e) => e.what), ["stale_book"]);
+});
+
+test("the rule governs trading, not valuation: a stale book still marks and still accepts", () => {
+  // The distinction matters. `#markPrices` also values exposure for the cap check at
+  // submit, so refusing a stale mid there would *reject* orders during a feed gap - and
+  // the published rule says they wait. An old mid is kept for valuing; it is only
+  // trading against the book that stops.
+  const { of, engine } = run([
+    { kind: "register", atMs: T0 - 1_000, entryId: "e1" },
+    book(T0, 99_990, 100_010),
+    // Small, because a filled order keeps its reservation until it is cancelled, as in a
+    // vault: a full-size first order would use up the cap and the second would be
+    // refused for that reason instead.
+    { kind: "submit", atMs: T0 + 1_000, entryId: "e1", order: order({ sz: size(0.001) }) },
+    book(T0 + 3_000, 99_990, 100_010),
+    // Nothing further arrives for this asset: the book ages well past the limit.
+    { kind: "submit", atMs: T0 + 5 * MINUTE, entryId: "e1", order: order({ cloid: 2n, sz: size(0.001) }) },
+    { kind: "clock", atMs: T0 + 6 * MINUTE },
+  ]);
+  assert.equal(of("fill").length, 1, "the first order should have filled on a fresh book");
+  assert.deepEqual(
+    of("rejected").map((e) => e.reason),
+    [],
+    "an order was rejected during a feed gap; NoMarkPrice here would mean the rule had reached valuation"
+  );
+  assert.equal(of("accepted").length, 2, "the second order should be accepted and wait");
+
+  // And the position is still valued, from the old mid, rather than dropping to zero.
+  const snapshot = engine.snapshot("e1");
+  assert.ok(snapshot !== null);
+  assert.ok(snapshot.equity > 0n);
+  assert.deepEqual(of("gap").filter((e) => e.what === "no_mark"), []);
 });
 
 test("reduce-only is clamped to the open position", () => {
