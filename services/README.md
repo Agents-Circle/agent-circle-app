@@ -199,6 +199,32 @@ clock, one file per UTC day under `ARENA_RECORD_DIR`, gzipped once the day is ov
 - Volume, mainnet, 15 coins: about 0.8 MB a minute plain and 0.1 MB gzipped, so about
   150 MB a compressed day.
 
+### Running a season
+
+**Exactly one instance per season, ever.** The indexer and the keeper tolerate a second
+copy (wasteful, not wrong). A second Arena is wrong: each holds its own input log and
+engine state, both accept orders on the same API keys, and both upsert `scores` for the
+same entries, so the leaderboard shows whichever wrote last and neither log is the season.
+Nothing locks against it. `deploy/agent-circle-arena@.service` runs one per slug.
+
+**The log must outlive the process.** A lost log used to be silent: `freezeSeason` only
+refuses a season file that *disagrees*, so if the file and the log were both simply gone,
+it wrote a fresh file, the replay returned zero, and the process restarted the season from
+the opening equity — with every entry and API key still working, and nobody told. The
+published scores would then disagree with a replay of the truncated log, which is the exact
+check an independent scorer runs before a prize is paid.
+
+Start-up now refuses that: published scores with an empty replay means the log is gone
+(`logIsLost`), because only this process writes scores. Recovering means restoring the log,
+not deleting the scores. That is a backstop against silence, not a substitute for durable
+storage — put the log on a disk that survives the process, and back it up.
+
+**So a container platform with an ephemeral filesystem is the wrong home for it.** On
+Render it needs a paid instance type with a persistent disk mounted where `ARENA_LOG_PATH`
+lives; a free instance would spin down (dropping the feed WebSocket) *and* lose the log on
+every deploy. This is the same risk the recorder carries today, one step worse: the
+recorder's data is observational, the input log is the season's only authoritative record.
+
 **House baselines** (`src/arena/baselines.ts`). These are the plan's "cash, BTC long at the
 cap, and random entries". They're published and never prize-eligible (`isHouseEntry`). They're
 inputs, not engine code. `withHouseEntries` merges `house:*` registrations, orders and cancels

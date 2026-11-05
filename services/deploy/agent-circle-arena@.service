@@ -1,0 +1,54 @@
+# systemd user unit for the Arena season process. One instance per season:
+#
+#   cp deploy/agent-circle-arena@.service ~/.config/systemd/user/
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now agent-circle-arena@season-0
+#
+# `%i` is the season slug, which must already exist in the `seasons` table.
+#
+# ## Exactly one instance per season, ever
+#
+# Unlike the indexer and the keeper, a second Arena is not merely wasteful. Each holds its
+# own input log and its own engine state, both would accept orders on the same API keys,
+# and both would upsert `scores` for the same entries — so the leaderboard would show
+# whichever wrote last, and neither log would be the season. There is no locking to stop
+# this. One instance, and `Restart=always` rather than anything that could overlap.
+#
+# ## The log must outlive the process
+#
+# `ARENA_LOG_PATH` is the season. A restart replays it; an independent scorer scores from
+# it; a prize is paid on it. If it is lost, `main.ts` now refuses to start when the
+# database already holds published scores for the season — but that is a backstop against
+# silence, not a substitute for durable storage. Put the log on a disk that survives the
+# process, and back it up.
+#
+# This is why the Arena is a poor fit for a container platform with an ephemeral
+# filesystem. On Render it needs a paid instance type with a persistent disk mounted at
+# ARENA_LOG_PATH's directory; a free instance would both spin down (dropping the feed
+# WebSocket) and lose the log on every deploy.
+#
+# The process holds no key, signs nothing and moves no money. It needs SUPABASE_URL and
+# SUPABASE_SERVICE_ROLE_KEY to read entries and write scores, which belong in the
+# EnvironmentFile and nowhere else.
+
+[Unit]
+Description=Agent Circle Arena season (%i)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/agents-circle/.runtime/arena/services
+Environment=ARENA_SEASON_SLUG=%i
+Environment=ARENA_LOG_PATH=%h/agents-circle/arena-data/seasons/%i.jsonl
+EnvironmentFile=%h/agents-circle/arena-data/seasons/%i.env
+ExecStart=/usr/bin/env node --disable-warning=ExperimentalWarning src/arena/main.ts
+Restart=always
+RestartSec=5
+# SIGINT so the sequencer finishes the line it is appending. A half-written final line is
+# recoverable (`repairTornTail` trims it on the next start) but losing a whole event is not.
+KillSignal=SIGINT
+TimeoutStopSec=15
+
+[Install]
+WantedBy=default.target

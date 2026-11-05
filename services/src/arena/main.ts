@@ -4,7 +4,7 @@ import { fatal, logger } from "../shared/log.ts";
 import { arenaApi } from "./api.ts";
 import { MarketFeed, WS_URL } from "./feed.ts";
 import type { Instrument } from "./market.ts";
-import { EntryDirectory, loadSeason, publishScores } from "./publish.ts";
+import { EntryDirectory, loadSeason, logIsLost, publishedScoreCount, publishScores } from "./publish.ts";
 import { SEASON_0 } from "./rules.ts";
 import { ArenaRuntime } from "./runtime.ts";
 import { freezeSeason, rulesHash, seasonFilePath } from "./season.ts";
@@ -39,7 +39,15 @@ async function main(): Promise<void> {
   const slug = env("ARENA_SEASON_SLUG");
   const coins = env("ARENA_COINS").split(",").map((c) => c.trim()).filter(Boolean);
   const logPath = env("ARENA_LOG_PATH", `./arena-data/${slug}.jsonl`);
-  const port = positiveInt("ARENA_PORT", 8787);
+  // `PORT` is the fallback because container platforms assign the port and inject it under
+  // that name; Render routes to whatever it set, and an app bound elsewhere looks like a
+  // failed deploy with no error in the log. `ARENA_PORT` wins when set, so a local run or
+  // a systemd unit can still pin it.
+  //
+  // The variable is chosen before validating, rather than nesting the two calls: nested,
+  // the inner `PORT` is evaluated even when `ARENA_PORT` is set, so a junk `PORT` would
+  // reject a perfectly good `ARENA_PORT`.
+  const port = positiveInt(process.env.ARENA_PORT ? "ARENA_PORT" : "PORT", 8787);
   const publishMs = positiveInt("ARENA_PUBLISH_MS", 60_000);
   const infoUrl = env(
     "HYPERLIQUID_INFO_URL",
@@ -78,6 +86,34 @@ async function main(): Promise<void> {
     logPath,
   });
   log.info("season resumed from log", { slug, replayed, repaired, rulesHash: frozen.rulesHash });
+
+  // A lost input log is silent, and it is the worst thing that can happen to a season.
+  //
+  // `freezeSeason` only catches a season file that *disagrees*. If the file and the log
+  // are both simply gone — an ephemeral filesystem, a container replaced, a disk not
+  // mounted — it writes a fresh file, the replay returns 0, and this process starts the
+  // season again from the opening equity while the entries are still in the database and
+  // every key still works. Nobody is told. The published scores then disagree with a
+  // replay of the truncated log, which is exactly the check an independent scorer runs
+  // before a prize is paid.
+  //
+  // Published scores are proof the season has run, because only this process writes them.
+  // Scores with an empty log mean the log is gone, so refuse to start rather than quietly
+  // restart the season. Recovering means restoring the log, not deleting the scores.
+  if (replayed === 0) {
+    const published = await publishedScoreCount(db, season.id);
+    if (logIsLost(replayed, published)) {
+      fatal(
+        log,
+        new Error(
+          `${slug} has ${published} published daily scores but ${logPath} replayed no events. ` +
+            `The input log is missing or empty, so starting now would restart the season from zero ` +
+            `and contradict what has already been published. Restore the log to ${logPath} ` +
+            `(ARENA_LOG_PATH), or if this season is genuinely being abandoned, clear its scores first.`
+        )
+      );
+    }
+  }
 
   runtime.onOutput((event) => {
     if (event.kind === "auto_paused" || event.kind === "gap") log.warn(`engine: ${event.kind}`, { ...event });
