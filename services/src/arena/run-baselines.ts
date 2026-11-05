@@ -109,6 +109,12 @@ async function main(): Promise<void> {
   const digest = createHash("sha256");
   const fills = new Map<string, number>();
   const outcomes = new Map<string, number>();
+  /// What the engine refused under the stale-book rule. The authoritative count, because
+  /// it is the engine's own decision rather than this file's reconstruction of it.
+  let staleRefusals = 0;
+  /// Prints that arrived before the asset's first book. Expected at the open, and not a
+  /// stale book - kept separate so it cannot be mistaken for the rule binding.
+  let noBookRefusals = 0;
   const engine = new ArenaEngine({
     rules: SEASON_0,
     instruments,
@@ -118,6 +124,8 @@ async function main(): Promise<void> {
       digest.update(encode(event) + "\n");
       if (event.kind === "rejected") outcomes.set(`rejected ${event.reason}`, (outcomes.get(`rejected ${event.reason}`) ?? 0) + 1);
       if (event.kind === "order_done") outcomes.set(event.why, (outcomes.get(event.why) ?? 0) + 1);
+      if (event.kind === "gap" && event.what === "stale_book") staleRefusals += 1;
+      if (event.kind === "gap" && event.what === "no_book") noBookRefusals += 1;
       if (event.kind !== "fill") return;
       fills.set(event.entryId, (fills.get(event.entryId) ?? 0) + 1);
       console.log(
@@ -139,7 +147,10 @@ async function main(): Promise<void> {
   const out = values.out ? lineWriter(values.out) : null;
   const lastBook = new Map<string, number>();
   const longestGap = new Map<string, number>();
-  const staleGaps = new Map<string, number>();
+  /// Books that were already past `staleBookMs` when they arrived, by their own
+  /// timestamp. This is the quantity the rule tests; the gap between consecutive books
+  /// below is a different thing and is reported separately.
+  const staleOnArrival = new Map<string, number>();
   let count = 0;
   let houseInputs = 0;
   let lastMs = startMs;
@@ -168,7 +179,9 @@ async function main(): Promise<void> {
       if (prev !== undefined) {
         const gap = event.atMs - prev;
         if (gap > (longestGap.get(coin) ?? 0)) longestGap.set(coin, gap);
-        if (gap > SEASON_0.staleBookMs) staleGaps.set(coin, (staleGaps.get(coin) ?? 0) + 1);
+      }
+      if (event.atMs - event.book.timeMs > SEASON_0.staleBookMs) {
+        staleOnArrival.set(coin, (staleOnArrival.get(coin) ?? 0) + 1);
       }
       lastBook.set(coin, event.atMs);
     }
@@ -179,8 +192,17 @@ async function main(): Promise<void> {
   console.log(`orders: ${[...outcomes].sort(([a], [b]) => (a < b ? -1 : 1)).map(([k, n]) => `${k} ${n}`).join(", ") || "none"}`);
   const gaps = [...longestGap].sort((a, b) => b[1] - a[1]);
   console.log(`longest book gap: ${gaps.slice(0, 3).map(([coin, ms]) => `${coin} ${(ms / 1000).toFixed(1)}s`).join(", ") || "n/a"}`);
-  const stale = [...staleGaps.values()].reduce((a, b) => a + b, 0);
-  console.log(`book gaps over staleBookMs (${SEASON_0.staleBookMs / 1000}s): ${stale}. The engine does not read staleBookMs yet, so they changed nothing above.\n`);
+  // Two different numbers, and conflating them is how the old version of this line came
+  // to claim the rule did nothing. The gap between books is feed health: a long one means
+  // the recorder or the socket stalled. What the rule tests is each book's own age on
+  // arrival, and what it did is the engine's refusal count.
+  const staleArrivals = [...staleOnArrival.values()].reduce((a, b) => a + b, 0);
+  const limit = SEASON_0.staleBookMs / 1000;
+  console.log(
+    `stale books (older than ${limit}s when received): ${staleArrivals}; ` +
+      `refused on a stale book ${staleRefusals} times, ` +
+      `on no book yet ${noBookRefusals} times (prints before the first snapshot)\n`
+  );
 
   for (const { entryId, rank, score } of rankEntries(engine, SEASON_0)) {
     console.log(
