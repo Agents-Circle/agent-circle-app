@@ -14,6 +14,7 @@
     "arena:replay": "node --disable-warning=ExperimentalWarning src/arena/replay.ts",
     "arena:record": "node --disable-warning=ExperimentalWarning src/arena/record.ts",
     "arena:check-recording": "node --disable-warning=ExperimentalWarning src/arena/check-recording.ts",
+    "arena:baselines": "node --disable-warning=ExperimentalWarning src/arena/run-baselines.ts",
     "typecheck": "tsc --noEmit",
     "test": "node --disable-warning=ExperimentalWarning --test 'src/**/*.test.ts'",
     "elysium:pools": "node --disable-warning=ExperimentalWarning src/elysium/pools.ts",

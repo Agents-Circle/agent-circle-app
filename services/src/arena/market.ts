@@ -63,8 +63,8 @@ export const FUNDING_DECIMALS = 12;
  * it fill. The Arena rejects it loudly instead, because teaching an agent that lesson on
  * paper is cheaper than teaching it with a reservation stuck until expiry.
  */
-const PERP_MAX_DECIMALS = 6;
-const MAX_SIGNIFICANT_FIGURES = 5;
+export const PERP_MAX_DECIMALS = 6;
+export const MAX_SIGNIFICANT_FIGURES = 5;
 
 export function lotSize(instrument: Instrument): bigint {
   return 10n ** BigInt(SIZE_DECIMALS - instrument.szDecimals);
