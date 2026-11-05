@@ -29,8 +29,15 @@ import { utcDay, type Mark, type ScoreInput } from "./scoring.ts";
  * what makes a restart safe: replay the log, then carry on.
  *
  * One clock for everything: the receive time. Hyperliquid's own timestamps are kept in the
- * data but never compared with ours, because comparing two machines' clocks is how an
- * order ends up filled against a book it could not have seen.
+ * data and are not used to decide *when* anything happens, because comparing two machines'
+ * clocks is how an order ends up filled against a book it could not have seen.
+ *
+ * The stale-book rule is the one place the two are subtracted, and it is safe there
+ * because it only ever *refuses*. A book is stale when `receiveTime - book.timeMs`
+ * exceeds `staleBookMs`, which is the book's whole age: the time Hyperliquid took to
+ * send it plus the time we have held it. Skew makes that number larger, never smaller,
+ * so a skewed clock can only make the engine more cautious than the rule requires. No
+ * fill, activation or mark is ever granted on the strength of an exchange timestamp.
  *
  * ## Reservations, exactly as the vault keeps them
  *
@@ -89,7 +96,7 @@ export type OutputEvent =
   | { kind: "mark"; atMs: number; entryId: string; equity: bigint; drawdownBps: bigint; present: boolean }
   | { kind: "auto_paused"; atMs: number; entryId: string; drawdownBps: bigint }
   /** Something the engine needed and did not have. Published, not hidden. */
-  | { kind: "gap"; atMs: number; asset: number; what: "no_mark" | "no_funding_context" };
+  | { kind: "gap"; atMs: number; asset: number; what: "no_mark" | "no_funding_context" | "stale_book" };
 
 type Working = {
   order: Order;
@@ -193,7 +200,8 @@ export class ArenaEngine {
   snapshot(entryId: string) {
     const entry = this.#entries.get(entryId);
     if (!entry) return null;
-    const marks = this.#markPrices();
+    // A read, so it uses the engine's current event time rather than one of its own.
+    const marks = this.#markPrices(this.#nowMs);
     const current = equity(entry.account, marks);
     return {
       entryId,
@@ -284,7 +292,7 @@ export class ArenaEngine {
   }
 
   #markAll(timeMs: number): void {
-    const marks = this.#markPrices();
+    const marks = this.#markPrices(timeMs);
 
     for (const entry of this.#entries.values()) {
       if (timeMs < entry.registeredAtMs) continue;
@@ -318,7 +326,7 @@ export class ArenaEngine {
     }
   }
 
-  #markPrices(): Map<number, bigint> {
+  #markPrices(timeMs: number): Map<number, bigint> {
     const marks = new Map<number, bigint>();
     for (const asset of this.#instruments.keys()) {
       const context = this.#contexts.get(asset);
@@ -326,8 +334,13 @@ export class ArenaEngine {
         marks.set(asset, context.markPx);
         continue;
       }
+      // Falling back to the book's mid for an asset that has never had a context, and
+      // only while that book is inside the limit. A stale mid feeds drawdown, auto-pause
+      // and the performance fee, so it is the worst of the three places to accept one;
+      // without a mark the caller emits `no_mark` and the position is left unvalued.
       const book = this.#books.get(asset);
-      const mid = book ? midPx(book) : null;
+      if (book === undefined || this.#stale(book, timeMs)) continue;
+      const mid = midPx(book);
       if (mid !== null) marks.set(asset, mid);
     }
     return marks;
@@ -358,7 +371,7 @@ export class ArenaEngine {
     const entry = this.#entries.get(entryId);
     if (!entry) return reject("VaultNotFound");
 
-    const marks = this.#markPrices();
+    const marks = this.#markPrices(timeMs);
     const reservations = new Map<bigint, Reservation>();
     for (const [cloid, working] of entry.orders) {
       reservations.set(cloid, { asset: working.order.asset, maxCost: working.maxCost });
@@ -424,7 +437,7 @@ export class ArenaEngine {
 
   /** `_sendReduceOnlyClose`: IOC at mark ± 50%, so the exit is limited by depth, not price. */
   #scheduleExits(entry: Entry, timeMs: number): void {
-    const marks = this.#markPrices();
+    const marks = this.#markPrices(timeMs);
     for (const [asset, size] of entry.account.positions) {
       if (entry.exits.has(asset)) continue;
       const mark = marks.get(asset);
@@ -453,11 +466,33 @@ export class ArenaEngine {
     return reducible < remaining ? reducible : remaining;
   }
 
+  /**
+   * `staleBookMs`, in one place.
+   *
+   * The age of the data, not the age of our copy: a book that reaches us 15 seconds after
+   * Hyperliquid stamped it is 15 seconds old on arrival, and the published rule says it is
+   * not traded against. Stored books age the same way as event time advances, so the same
+   * test serves the arrival path, the print path and the mark.
+   */
+  #stale(book: Book, timeMs: number): boolean {
+    return timeMs - book.timeMs > this.#rules.staleBookMs;
+  }
+
   #onBook(timeMs: number, book: Book): void {
     const instrument = this.#byCoin.get(book.coin);
     if (!instrument) return;
     const asset = instrument.asset;
+
+    // Stored even when stale: it is still the best view of the asset there is, and the
+    // next test is made against the time of use, not of arrival.
     this.#books.set(asset, book);
+
+    if (this.#stale(book, timeMs)) {
+      // Orders on this asset wait. Nothing is cancelled and no order loses its place;
+      // they activate and fill on the first book that arrives inside the limit.
+      this.#emit({ kind: "gap", atMs: timeMs, asset, what: "stale_book" });
+      return;
+    }
 
     for (const entry of this.#entries.values()) {
       const exit = entry.exits.get(asset);
@@ -505,6 +540,16 @@ export class ArenaEngine {
   #onTrade(timeMs: number, trade: Trade): void {
     const instrument = this.#byCoin.get(trade.coin);
     if (!instrument) return;
+
+    // A print is not a book. Granting a maker fill while the asset's book is stale is
+    // trading on an asset the engine cannot currently see, which is what the rule forbids
+    // - and `l2Book` stalling while `trades` keep arriving is the ordinary shape of a
+    // partial feed outage, not a rare one.
+    const book = this.#books.get(instrument.asset);
+    if (book === undefined || this.#stale(book, timeMs)) {
+      this.#emit({ kind: "gap", atMs: timeMs, asset: instrument.asset, what: "stale_book" });
+      return;
+    }
 
     for (const entry of this.#entries.values()) {
       for (const [cloid, working] of entry.orders) {
