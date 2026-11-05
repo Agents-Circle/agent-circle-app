@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { EntryPanel } from "@/components/arena/EntryPanel";
 import { FeedNotice } from "@/components/FeedNotice";
 import { PageHeader } from "@/components/PageHeader";
 import { formatBpsPct, getArenaSeason, PAPER_LABEL, shortWallet, type ArenaRow } from "@/lib/arena";
@@ -52,6 +53,8 @@ export default async function ArenaSeasonPage({ params }: { params: Promise<{ sl
           {PAPER_LABEL}
         </p>
       ) : null}
+
+      <EntryPanel seasonSlug={season.slug} status={season.status} />
 
       <section className="mb-10 text-sm" style={{ color: "var(--muted)" }}>
         <p>
