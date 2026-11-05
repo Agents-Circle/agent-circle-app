@@ -166,6 +166,18 @@ test("a print does not fill a resting order while the asset's book is stale", ()
   assert.deepEqual(of("gap").map((e) => e.what), ["stale_book"]);
 });
 
+test("a print before the asset's first book is `no_book`, not `stale_book`", () => {
+  // Every season opens with this: trades arrive before the first l2Book snapshot. Over a
+  // recorded mainnet slice it was 12 refusals in the first 1.5 seconds, and reporting
+  // them as stale-book refusals makes the log read as though the rule had bound.
+  const { of } = run([
+    { kind: "register", atMs: T0 - 1_000, entryId: "e1" },
+    { kind: "trade", atMs: T0 + 500, trade: { coin: "BTC", timeMs: T0 + 500, px: px(99_940), sz: size(1), side: "A", tid: 1 } },
+    book(T0 + 2_000, 99_990, 100_010),
+  ]);
+  assert.deepEqual(of("gap").map((e) => e.what), ["no_book"]);
+});
+
 test("the rule governs trading, not valuation: a stale book still marks and still accepts", () => {
   // The distinction matters. `#markPrices` also values exposure for the cap check at
   // submit, so refusing a stale mid there would *reject* orders during a feed gap - and

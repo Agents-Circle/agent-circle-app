@@ -807,8 +807,15 @@ class Engine:
         # [rules] A print is not a book: a maker fill while the asset's book is stale is
         # trading on an asset nobody can currently see. Measured on the book's own clock,
         # as above, not on how long we have held it.
+        #
+        # [engine] Two counters, not one. Having no book yet is not a stale book, and
+        # every season opens with a burst of it because trades arrive before the first
+        # l2Book snapshot does.
         book = self.books.get(asset)
-        if book is None or t - book[1] > self.rules["staleBookMs"]:
+        if book is None:
+            self.audit["no_book_yet_not_traded_against"] += 1
+            return
+        if t - book[1] > self.rules["staleBookMs"]:
             self.audit["stale_book_not_traded_against"] += 1
             return
 

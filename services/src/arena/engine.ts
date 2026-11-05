@@ -96,7 +96,7 @@ export type OutputEvent =
   | { kind: "mark"; atMs: number; entryId: string; equity: bigint; drawdownBps: bigint; present: boolean }
   | { kind: "auto_paused"; atMs: number; entryId: string; drawdownBps: bigint }
   /** Something the engine needed and did not have. Published, not hidden. */
-  | { kind: "gap"; atMs: number; asset: number; what: "no_mark" | "no_funding_context" | "stale_book" };
+  | { kind: "gap"; atMs: number; asset: number; what: "no_mark" | "no_funding_context" | "stale_book" | "no_book" };
 
 type Working = {
   order: Order;
@@ -545,8 +545,17 @@ export class ArenaEngine {
     // trading on an asset the engine cannot currently see, which is what the rule forbids
     // - and `l2Book` stalling while `trades` keep arriving is the ordinary shape of a
     // partial feed outage, not a rare one.
+    //
+    // Reported as two reasons, not one. Having no book yet is not a stale book: every
+    // season opens with a short burst of it, because trades arrive before the first
+    // `l2Book` snapshot does. Counting those as stale-book refusals makes a season log
+    // read as though the rule bound when nothing was wrong.
     const book = this.#books.get(instrument.asset);
-    if (book === undefined || this.#stale(book, timeMs)) {
+    if (book === undefined) {
+      this.#emit({ kind: "gap", atMs: timeMs, asset: instrument.asset, what: "no_book" });
+      return;
+    }
+    if (this.#stale(book, timeMs)) {
       this.#emit({ kind: "gap", atMs: timeMs, asset: instrument.asset, what: "stale_book" });
       return;
     }
