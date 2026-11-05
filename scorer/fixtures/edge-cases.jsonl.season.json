@@ -1,0 +1,28 @@
+{
+  "slug": "edge-cases",
+  "startMs": 1794268800000,
+  "endMs": 1794281400000,
+  "instruments": [
+    {
+      "coin": "BTC",
+      "asset": 0,
+      "szDecimals": 5
+    },
+    {
+      "coin": "ETH",
+      "asset": 1,
+      "szDecimals": 4
+    },
+    {
+      "coin": "SOL",
+      "asset": 5,
+      "szDecimals": 2
+    },
+    {
+      "coin": "AVAX",
+      "asset": 6,
+      "szDecimals": 2
+    }
+  ],
+  "rulesHash": "7fc2b4a7df7473f252395e31b464a2afecd74dc973d3e1fea173602c8ae2cdb8"
+}

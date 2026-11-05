@@ -42,6 +42,22 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
+      # The independent scorer's fixtures are the engine's own output. Rebuilding them must
+      # change nothing, or the engine's results changed and the scorer no longer checks them.
+      - name: Engine still matches the scorer fixtures
+        run: |
+          node ../scorer/tools/make-fixtures.mjs
+          git diff --exit-code -- ../scorer/fixtures
+
+  scorer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # Standard library only: nothing to install.
+      - run: python3 -m unittest discover -s scorer -v
 
   migrations:
     runs-on: ubuntu-latest

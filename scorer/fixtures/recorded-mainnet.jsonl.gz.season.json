@@ -1,0 +1,23 @@
+{
+  "slug": "recorded-mainnet-2026-11-04",
+  "startMs": 1793782200000,
+  "endMs": 1793783340000,
+  "instruments": [
+    {
+      "coin": "BTC",
+      "asset": 0,
+      "szDecimals": 5
+    },
+    {
+      "coin": "ETH",
+      "asset": 1,
+      "szDecimals": 4
+    },
+    {
+      "coin": "SOL",
+      "asset": 5,
+      "szDecimals": 2
+    }
+  ],
+  "rulesHash": "7fc2b4a7df7473f252395e31b464a2afecd74dc973d3e1fea173602c8ae2cdb8"
+}

@@ -1,0 +1,13 @@
+{
+  "slug": "long-season",
+  "startMs": 1794355200000,
+  "endMs": 1795392000000,
+  "instruments": [
+    {
+      "coin": "BTC",
+      "asset": 0,
+      "szDecimals": 5
+    }
+  ],
+  "rulesHash": "7fc2b4a7df7473f252395e31b464a2afecd74dc973d3e1fea173602c8ae2cdb8"
+}

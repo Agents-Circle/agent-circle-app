@@ -1,0 +1,499 @@
+{
+  "events": 1148,
+  "entries": [
+    {
+      "rank": 1,
+      "entryId": "funding_long_eth",
+      "scoreBps": 1,
+      "netReturnBps": 1,
+      "maxDrawdownBps": 0,
+      "feesPaid": "0.650162",
+      "fees": {
+        "venue": "0.450112",
+        "execution": "0.200050",
+        "performance": "0.000000"
+      },
+      "fundingPaid": "0.040153",
+      "finalEquity": "10001.559685",
+      "cash": "8999.059685",
+      "positions": {
+        "1": "0.25000000"
+      },
+      "eligible": false,
+      "activeDays": 1,
+      "presenceBps": 9952,
+      "turnover": "250.4342",
+      "marks": 210,
+      "fills": 1,
+      "notionalTraded": "1000.250000",
+      "registeredAtMs": 1794268805000,
+      "autoPausedAtMs": null,
+      "rejections": {}
+    },
+    {
+      "rank": 2,
+      "entryId": "ro",
+      "scoreBps": 1,
+      "netReturnBps": 1,
+      "maxDrawdownBps": 0,
+      "feesPaid": "0.200713",
+      "fees": {
+        "venue": "0.120309",
+        "execution": "0.080404",
+        "performance": "0.000000"
+      },
+      "fundingPaid": "0.000000",
+      "finalEquity": "10001.779287",
+      "cash": "10001.779287",
+      "positions": {},
+      "eligible": false,
+      "activeDays": 1,
+      "presenceBps": 95,
+      "turnover": "100.6821",
+      "marks": 210,
+      "fills": 2,
+      "notionalTraded": "402.020000",
+      "registeredAtMs": 1794268810000,
+      "autoPausedAtMs": null,
+      "rejections": {}
+    },
+    {
+      "rank": 3,
+      "entryId": "expiry_edge",
+      "scoreBps": 1,
+      "netReturnBps": 1,
+      "maxDrawdownBps": 0,
+      "feesPaid": "0.069300",
+      "fees": {
+        "venue": "0.029700",
+        "execution": "0.039600",
+        "performance": "0.000000"
+      },
+      "fundingPaid": "0.004998",
+      "finalEquity": "10001.725702",
+      "cash": "9801.925702",
+      "positions": {
+        "0": "0.00200000"
+      },
+      "eligible": false,
+      "activeDays": 1,
+      "presenceBps": 9952,
+      "turnover": "49.5930",
+      "marks": 210,
+      "fills": 1,
+      "notionalTraded": "198.000000",
+      "registeredAtMs": 1794268811000,
+      "autoPausedAtMs": null,
+      "rejections": {}
+    },
+    {
+      "rank": 4,
+      "entryId": "early_bird",
+      "scoreBps": 0,
+      "netReturnBps": 0,
+      "maxDrawdownBps": 0,
+      "feesPaid": "0.000000",
+      "fees": {
+        "venue": "0.000000",
+        "execution": "0.000000",
+        "performance": "0.000000"
+      },
+      "fundingPaid": "0.000000",
+      "finalEquity": "10000.000000",
+      "cash": "10000.000000",
+      "positions": {},
+      "eligible": false,
+      "activeDays": 0,
+      "presenceBps": 0,
+      "turnover": "0.0000",
+      "marks": 211,
+      "fills": 0,
+      "notionalTraded": "0.000000",
+      "registeredAtMs": 1794268740000,
+      "autoPausedAtMs": null,
+      "rejections": {
+        "SeasonNotRunning": 1
+      }
+    },
+    {
+      "rank": 5,
+      "entryId": "alo",
+      "scoreBps": 0,
+      "netReturnBps": 0,
+      "maxDrawdownBps": 0,
+      "feesPaid": "0.069964",
+      "fees": {
+        "venue": "0.029984",
+        "execution": "0.039980",
+        "performance": "0.000000"
+      },
+      "fundingPaid": "0.007495",
+      "finalEquity": "9999.822541",
+      "cash": "9800.022541",
+      "positions": {
+        "0": "0.00200000"
+      },
+      "eligible": false,
+      "activeDays": 1,
+      "presenceBps": 9952,
+      "turnover": "50.0439",
+      "marks": 210,
+      "fills": 2,
+      "notionalTraded": "199.900000",
+      "registeredAtMs": 1794268803000,
+      "autoPausedAtMs": null,
+      "rejections": {
+        "TooManyOpenOrders": 1
+      }
+    },
+    {
+      "rank": 6,
+      "entryId": "ties_a",
+      "scoreBps": 0,
+      "netReturnBps": 0,
+      "maxDrawdownBps": 0,
+      "feesPaid": "0.129999",
+      "fees": {
+        "venue": "0.089999",
+        "execution": "0.040000",
+        "performance": "0.000000"
+      },
+      "fundingPaid": "0.000000",
+      "finalEquity": "9999.850001",
+      "cash": "9999.850001",
+      "positions": {},
+      "eligible": false,
+      "activeDays": 1,
+      "presenceBps": 142,
+      "turnover": "50.0857",
+      "marks": 210,
+      "fills": 2,
+      "notionalTraded": "200.000000",
+      "registeredAtMs": 1794268807000,
+      "autoPausedAtMs": null,
+      "rejections": {}
+    },
+    {
+      "rank": 7,
+      "entryId": "ties_b",
+      "scoreBps": 0,
+      "netReturnBps": 0,
+      "maxDrawdownBps": 0,
+      "feesPaid": "0.129999",
+      "fees": {
+        "venue": "0.089999",
+        "execution": "0.040000",
+        "performance": "0.000000"
+      },
+      "fundingPaid": "0.000000",
+      "finalEquity": "9999.850001",
+      "cash": "9999.850001",
+      "positions": {},
+      "eligible": false,
+      "activeDays": 1,
+      "presenceBps": 142,
+      "turnover": "50.0896",
+      "marks": 210,
+      "fills": 2,
+      "notionalTraded": "200.000000",
+      "registeredAtMs": 1794268808000,
+      "autoPausedAtMs": null,
+      "rejections": {}
+    },
+    {
+      "rank": 8,
+      "entryId": "idle_z",
+      "scoreBps": 0,
+      "netReturnBps": 0,
+      "maxDrawdownBps": 0,
+      "feesPaid": "0.000000",
+      "fees": {
+        "venue": "0.000000",
+        "execution": "0.000000",
+        "performance": "0.000000"
+      },
+      "fundingPaid": "0.000000",
+      "finalEquity": "10000.000000",
+      "cash": "10000.000000",
+      "positions": {},
+      "eligible": false,
+      "activeDays": 0,
+      "presenceBps": 0,
+      "turnover": "0.0000",
+      "marks": 210,
+      "fills": 0,
+      "notionalTraded": "0.000000",
+      "registeredAtMs": 1794268809000,
+      "autoPausedAtMs": null,
+      "rejections": {}
+    },
+    {
+      "rank": 9,
+      "entryId": "idle_y",
+      "scoreBps": 0,
+      "netReturnBps": 0,
+      "maxDrawdownBps": 0,
+      "feesPaid": "0.000000",
+      "fees": {
+        "venue": "0.000000",
+        "execution": "0.000000",
+        "performance": "0.000000"
+      },
+      "fundingPaid": "0.000000",
+      "finalEquity": "10000.000000",
+      "cash": "10000.000000",
+      "positions": {},
+      "eligible": false,
+      "activeDays": 0,
+      "presenceBps": 0,
+      "turnover": "0.0000",
+      "marks": 210,
+      "fills": 0,
+      "notionalTraded": "0.000000",
+      "registeredAtMs": 1794268809000,
+      "autoPausedAtMs": null,
+      "rejections": {}
+    },
+    {
+      "rank": 10,
+      "entryId": "rejects",
+      "scoreBps": 0,
+      "netReturnBps": 0,
+      "maxDrawdownBps": 0,
+      "feesPaid": "0.000000",
+      "fees": {
+        "venue": "0.000000",
+        "execution": "0.000000",
+        "performance": "0.000000"
+      },
+      "fundingPaid": "0.000000",
+      "finalEquity": "10000.000000",
+      "cash": "10000.000000",
+      "positions": {},
+      "eligible": false,
+      "activeDays": 0,
+      "presenceBps": 2857,
+      "turnover": "0.0000",
+      "marks": 210,
+      "fills": 0,
+      "notionalTraded": "0.000000",
+      "registeredAtMs": 1794268809000,
+      "autoPausedAtMs": null,
+      "rejections": {
+        "InvalidPrice": 1,
+        "InvalidSize": 1,
+        "InvalidTif": 1,
+        "NoMarkPrice": 1,
+        "OrderAlreadyExists": 1,
+        "SeasonNotRunning": 1,
+        "VenueNotWhitelisted": 1,
+        "ZeroAmount": 2
+      }
+    },
+    {
+      "rank": 11,
+      "entryId": "cap_edge",
+      "scoreBps": 0,
+      "netReturnBps": 0,
+      "maxDrawdownBps": 0,
+      "feesPaid": "0.000000",
+      "fees": {
+        "venue": "0.000000",
+        "execution": "0.000000",
+        "performance": "0.000000"
+      },
+      "fundingPaid": "0.000000",
+      "finalEquity": "10000.000000",
+      "cash": "10000.000000",
+      "positions": {},
+      "eligible": false,
+      "activeDays": 0,
+      "presenceBps": 0,
+      "turnover": "0.0000",
+      "marks": 210,
+      "fills": 0,
+      "notionalTraded": "0.000000",
+      "registeredAtMs": 1794268809500,
+      "autoPausedAtMs": null,
+      "rejections": {
+        "PositionCapExceeded": 1
+      }
+    },
+    {
+      "rank": 12,
+      "entryId": "late",
+      "scoreBps": 0,
+      "netReturnBps": 0,
+      "maxDrawdownBps": 0,
+      "feesPaid": "0.129967",
+      "fees": {
+        "venue": "0.089977",
+        "execution": "0.039990",
+        "performance": "0.000000"
+      },
+      "fundingPaid": "0.001250",
+      "finalEquity": "9999.823744",
+      "cash": "9999.798783",
+      "positions": {},
+      "eligible": false,
+      "activeDays": 1,
+      "presenceBps": 9888,
+      "turnover": "116.7715",
+      "marks": 90,
+      "fills": 2,
+      "notionalTraded": "199.950000",
+      "registeredAtMs": 1794276000000,
+      "autoPausedAtMs": null,
+      "rejections": {}
+    },
+    {
+      "rank": 13,
+      "entryId": "ioc",
+      "scoreBps": -2,
+      "netReturnBps": -1,
+      "maxDrawdownBps": 1,
+      "feesPaid": "1.170011",
+      "fees": {
+        "venue": "0.810007",
+        "execution": "0.360004",
+        "performance": "0.000000"
+      },
+      "fundingPaid": "0.000000",
+      "finalEquity": "9998.529989",
+      "cash": "9998.529989",
+      "positions": {},
+      "eligible": false,
+      "activeDays": 1,
+      "presenceBps": 190,
+      "turnover": "450.6569",
+      "marks": 210,
+      "fills": 6,
+      "notionalTraded": "1800.020000",
+      "registeredAtMs": 1794268802000,
+      "autoPausedAtMs": null,
+      "rejections": {
+        "OrderNotFound": 1,
+        "PositionCapExceeded": 1
+      }
+    },
+    {
+      "rank": 14,
+      "entryId": "taker",
+      "scoreBps": -4,
+      "netReturnBps": -2,
+      "maxDrawdownBps": 2,
+      "feesPaid": "1.044987",
+      "fees": {
+        "venue": "0.704987",
+        "execution": "0.340000",
+        "performance": "0.000000"
+      },
+      "fundingPaid": "0.029986",
+      "finalEquity": "9997.925027",
+      "cash": "9098.825027",
+      "positions": {
+        "0": "0.00900000"
+      },
+      "eligible": false,
+      "activeDays": 1,
+      "presenceBps": 10000,
+      "turnover": "425.5670",
+      "marks": 210,
+      "fills": 7,
+      "notionalTraded": "1700.000000",
+      "registeredAtMs": 1794268801000,
+      "autoPausedAtMs": null,
+      "rejections": {
+        "PositionCapExceeded": 1
+      }
+    },
+    {
+      "rank": 15,
+      "entryId": "funding_short_eth",
+      "scoreBps": -6,
+      "netReturnBps": -3,
+      "maxDrawdownBps": 3,
+      "feesPaid": "0.649837",
+      "fees": {
+        "venue": "0.449887",
+        "execution": "0.199950",
+        "performance": "0.000000"
+      },
+      "fundingPaid": "-0.040153",
+      "finalEquity": "9996.640316",
+      "cash": "10999.140316",
+      "positions": {
+        "1": "-0.25000000"
+      },
+      "eligible": false,
+      "activeDays": 1,
+      "presenceBps": 9952,
+      "turnover": "250.4003",
+      "marks": 210,
+      "fills": 1,
+      "notionalTraded": "999.750000",
+      "registeredAtMs": 1794268806000,
+      "autoPausedAtMs": null,
+      "rejections": {}
+    },
+    {
+      "rank": 16,
+      "entryId": "sol_long",
+      "scoreBps": -962,
+      "netReturnBps": 15,
+      "maxDrawdownBps": 977,
+      "feesPaid": "0.262600",
+      "fees": {
+        "venue": "0.181800",
+        "execution": "0.080800",
+        "performance": "0.000000"
+      },
+      "fundingPaid": "0.000000",
+      "finalEquity": "10015.737400",
+      "cash": "9595.737400",
+      "positions": {
+        "5": "2.00000000"
+      },
+      "eligible": false,
+      "activeDays": 1,
+      "presenceBps": 9952,
+      "turnover": "100.5528",
+      "marks": 210,
+      "fills": 1,
+      "notionalTraded": "404.000000",
+      "registeredAtMs": 1794268812000,
+      "autoPausedAtMs": null,
+      "rejections": {}
+    },
+    {
+      "rank": 17,
+      "entryId": "paused",
+      "scoreBps": -3868,
+      "netReturnBps": -1934,
+      "maxDrawdownBps": 1934,
+      "feesPaid": "2.810600",
+      "fees": {
+        "venue": "1.945800",
+        "execution": "0.864800",
+        "performance": "0.000000"
+      },
+      "fundingPaid": "0.000000",
+      "finalEquity": "8065.189400",
+      "cash": "8065.189400",
+      "positions": {},
+      "eligible": false,
+      "activeDays": 1,
+      "presenceBps": 857,
+      "turnover": "1318.3044",
+      "marks": 210,
+      "fills": 6,
+      "notionalTraded": "4324.000000",
+      "registeredAtMs": 1794268804000,
+      "autoPausedAtMs": 1794269820000,
+      "rejections": {
+        "DrawdownLimitBreached": 1,
+        "VaultNotActive": 1
+      }
+    }
+  ]
+}
