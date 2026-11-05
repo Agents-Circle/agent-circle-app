@@ -39,7 +39,15 @@ async function main(): Promise<void> {
   const slug = env("ARENA_SEASON_SLUG");
   const coins = env("ARENA_COINS").split(",").map((c) => c.trim()).filter(Boolean);
   const logPath = env("ARENA_LOG_PATH", `./arena-data/${slug}.jsonl`);
-  const port = positiveInt("ARENA_PORT", 8787);
+  // `PORT` is the fallback because container platforms assign the port and inject it under
+  // that name; Render routes to whatever it set, and an app bound elsewhere looks like a
+  // failed deploy with no error in the log. `ARENA_PORT` wins when set, so a local run or
+  // a systemd unit can still pin it.
+  //
+  // The variable is chosen before validating, rather than nesting the two calls: nested,
+  // the inner `PORT` is evaluated even when `ARENA_PORT` is set, so a junk `PORT` would
+  // reject a perfectly good `ARENA_PORT`.
+  const port = positiveInt(process.env.ARENA_PORT ? "ARENA_PORT" : "PORT", 8787);
   const publishMs = positiveInt("ARENA_PUBLISH_MS", 60_000);
   const infoUrl = env(
     "HYPERLIQUID_INFO_URL",

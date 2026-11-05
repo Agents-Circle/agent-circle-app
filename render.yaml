@@ -1,0 +1,69 @@
+# Render Blueprint for the Arena season process.
+#
+# Declared here rather than created by hand because the Arena needs a **persistent disk**,
+# and that cannot be attached through the API this project drives Render with. A diskless
+# Arena is not a degraded Arena: the input log *is* the season, so an ephemeral filesystem
+# loses the season on every deploy. `src/arena/main.ts` now refuses to start when the
+# database holds published scores and the log replays nothing, which turns that from
+# silent data loss into a failed boot — but the disk is what stops it happening.
+#
+# Only the Arena is declared. The existing `agent-circle-app` and `agentscircle` services
+# were created outside any Blueprint and are deliberately left alone; planning with
+# `create_new` does not touch them.
+#
+# ## Why these settings and not the defaults
+#
+# - `plan: starter` — the free plan spins down when idle, which would drop the feed
+#   WebSocket, and it cannot carry a disk at all.
+# - `numInstances: 1` — not a capacity choice. Two Arenas would each hold their own input
+#   log and engine state, both would accept orders on the same API keys, and both would
+#   upsert `scores` for the same entries, so the leaderboard would show whichever wrote
+#   last and neither log would be the season. Nothing locks against it. Never scale this.
+# - `NODE_VERSION` — `services/` runs TypeScript through Node's native type stripping,
+#   which needs 22.18+. Render's default is older, and the failure is `node` refusing a
+#   `.ts` entry point, which reads like a broken start command rather than a wrong runtime.
+# - `healthCheckPath` — `/v1/health` already exists and needs no key.
+# - `SUPABASE_SERVICE_ROLE_KEY` is `sync: false`, so Render asks for it at sync time and
+#   it never passes through a tool call, a commit or a log.
+#
+# ## Disk size
+#
+# The recorder writes about 0.8 MB a minute plain for 15 coins (`services/README.md`).
+# A three-coin season is roughly 0.16 MB a minute, so about 230 MB a day and 3.2 GB over
+# the 14-day Season 0 in `handbook/plans/season-0-parameters.md`. 10 GB leaves room for a
+# longer season and for the `.season.json` beside the log, and a disk can grow but never
+# shrink.
+
+services:
+  - type: web
+    name: agent-circle-arena
+    runtime: node
+    plan: starter
+    region: oregon
+    rootDir: services
+    branch: main
+    numInstances: 1
+    healthCheckPath: /v1/health
+    buildCommand: npm ci --omit=dev
+    startCommand: node --disable-warning=ExperimentalWarning src/arena/main.ts
+    disk:
+      name: arena-log
+      mountPath: /var/arena-data
+      sizeGB: 10
+    envVars:
+      - key: NODE_VERSION
+        value: 22.18.0
+      - key: NETWORK
+        value: testnet
+      - key: ARENA_SEASON_SLUG
+        value: season-0
+      - key: ARENA_COINS
+        value: BTC,ETH,SOL
+      # Under the mount, so it survives a deploy. This is the one setting that must not
+      # drift from `disk.mountPath`.
+      - key: ARENA_LOG_PATH
+        value: /var/arena-data/season-0.jsonl
+      - key: SUPABASE_URL
+        value: https://lbehucddorwvtmrnlcme.supabase.co
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
