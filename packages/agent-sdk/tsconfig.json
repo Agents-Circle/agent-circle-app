@@ -1,0 +1,22 @@
+{
+  // The same settings as `services/`, for the same reason: Node runs these files directly
+  // with type stripping, so there is no build step, relative imports carry their real
+  // `.ts` extension, and `erasableSyntaxOnly` rules out syntax that would need a compiler
+  // (no `enum`, no `namespace`, no parameter properties).
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023", "DOM"],
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true,
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "types": ["node"]
+  },
+  "include": ["src/**/*.ts", "examples/**/*.ts", "scripts/**/*.ts", "test/**/*.ts"]
+}

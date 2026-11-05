@@ -40,7 +40,11 @@ const evmRepo = process.env.EVM_REPO ?? join(appRoot, "..", "agent-circle-evm");
 const outDirs = [
   join(appRoot, "lib", "contracts", "abis"),
   join(appRoot, "services", "src", "abis"),
+  join(appRoot, "packages", "agent-sdk", "src", "abis"),
 ];
+
+/** The directories Node runs directly, whose relative imports need the real extension. */
+const nodeDirs = new Set(outDirs.slice(1));
 
 /** `[solidity file, contract name]`. Only what the app actually calls. */
 const CONTRACTS = [
@@ -108,11 +112,11 @@ export const ${name}Abi = ${JSON.stringify(abi, null, 2)} as const;
     if (!check) console.log(`  ${name}  (${abi.length} entries)`);
   }
 
-  // The services resolve relative imports with Node's own rules, which means the real
-  // file extension. The app is bundled and uses extensionless specifiers. Same exports,
-  // one character apart, and getting it wrong fails at import time in one of the two.
+  // The services and the agent SDK resolve relative imports with Node's own rules, which
+  // means the real file extension. The app is bundled and uses extensionless specifiers.
+  // Same exports, one character apart, and getting it wrong fails at import time.
   const indexFor = (dir) => `${BANNER}
-${CONTRACTS.map(([, n]) => `export { ${n}Abi } from "./${n}${dir.includes("services") ? ".ts" : ""}";`).join("\n")}
+${CONTRACTS.map(([, n]) => `export { ${n}Abi } from "./${n}${nodeDirs.has(dir) ? ".ts" : ""}";`).join("\n")}
 `;
 
   if (check) {
