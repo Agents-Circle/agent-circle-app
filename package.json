@@ -10,6 +10,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "node --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test 'lib/**/*.test.ts'",
     "sync-abis": "node scripts/sync-abis.mjs",
     "check-abis": "node scripts/sync-abis.mjs --check"
   },

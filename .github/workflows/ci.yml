@@ -17,6 +17,9 @@ jobs:
       - run: npm ci
       - run: npx tsc --noEmit
       - run: npm run lint
+      # The app's own unit tests (lib/**/*.test.ts), run by Node's type stripping like
+      # the services' are.
+      - run: npm test
       # No Supabase or chain configuration, deliberately. The build has to work without
       # credentials or it cannot be built in CI, and it previously did not.
       - run: npm run build

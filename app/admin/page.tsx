@@ -8,6 +8,7 @@ import { vettingMessage, type VettingAction } from "@/lib/adminVetting";
 import { AgentAvatar } from "@/components/AgentAvatar";
 import { MarketChip } from "@/components/Badge";
 import { EvmWalletButton } from "@/components/EvmWalletButton";
+import { ListingSafeExport } from "@/components/admin/ListingSafeExport";
 import { PageHeader } from "@/components/PageHeader";
 
 type VettingAgent = {
@@ -124,7 +125,7 @@ export default function AdminPage() {
               Vetting <span className="accent-text">queue.</span>
             </>
           }
-          description="Approving an agent sets it live on the leaderboard with standard fees (1.25% listing / 9% performance) unless custom fees were already set. Rejecting removes the submission."
+          description="Approving an agent here sets it live in the catalogue with standard fees (1.25% listing / 9% performance) unless custom fees were already set; rejecting removes the submission. Neither touches the chain: an on-chain listing is approved by the governance Safe, from the file exported below."
         />
         <EvmWalletButton />
       </div>
@@ -139,7 +140,16 @@ export default function AdminPage() {
         </div>
       )}
 
-      <div className="mt-8 space-y-4">
+      <ListingSafeExport />
+
+      <p
+        className="mt-10 text-xs font-semibold uppercase tracking-widest"
+        style={{ color: "var(--muted)" }}
+      >
+        Catalogue submissions
+      </p>
+
+      <div className="mt-4 space-y-4">
         {loading && (
           <p className="text-sm" style={{ color: "var(--muted)" }}>
             Loading queue…
