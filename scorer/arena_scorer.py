@@ -835,8 +835,6 @@ class Engine:
                 if size == 0:
                     continue
                 self._fill(entry, working, asset, order.is_buy, order.limit_px, size, "maker", t)
-                if stale:
-                    self.audit["d1_maker_fill_while_book_older_than_staleBookMs"] += 1
                 if working.remaining == 0:
                     self._finish(entry, working)
 
