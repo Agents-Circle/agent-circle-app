@@ -10,6 +10,7 @@ import {
   issueEntry,
   KEY_PREFIX,
   moveSeason,
+  newApiKey,
   rotateKey,
   type SeasonRecord,
   type Store,
@@ -49,6 +50,26 @@ class MemoryStore implements Store {
 
 const SEASON = { slug: "season-0", name: "Season 0", number: 0, startsAt: "2026-11-11T00:00:00Z", endsAt: "2026-12-09T00:00:00Z" };
 const WALLET = "0x00000000000000000000000000000000000000Ab";
+
+/**
+ * The other half of a cross-package check.
+ *
+ * `agent-circle-app/lib/arenaKey.ts` holds a second copy of key generation and hashing,
+ * because the Next app cannot cleanly import this package. The Arena API authenticates by
+ * finding `sha256(key)` in `entries.api_key_hash`, so if the copies drift, keys issued by
+ * `app/api/arena/entry/route.ts` fail to authenticate and it looks like the entrant's
+ * fault. `lib/arenaEntry.test.ts` pins the same pair. Either side changing fails a test.
+ */
+const KEY_VECTOR = {
+  key: "acarena_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+  sha256: "2be3145f45b9e1f61d99da43c7d84a6e1e67c0aab3fb1444545cdeb459c49ef0",
+} as const;
+
+test("hashApiKey matches the app's copy, and keys carry the prefix the app writes", () => {
+  assert.equal(hashApiKey(KEY_VECTOR.key), KEY_VECTOR.sha256);
+  assert.ok(KEY_VECTOR.key.startsWith(KEY_PREFIX));
+  assert.ok(newApiKey().startsWith(KEY_PREFIX));
+});
 
 test("a season is created as a paper draft carrying the hash of the rules the engine runs", async () => {
   const store = new MemoryStore();
