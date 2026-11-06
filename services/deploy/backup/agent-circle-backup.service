@@ -1,0 +1,5 @@
+[Unit]
+Description=Agent Circle off-box backup (restic -> R2)
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/agent-circle-backup

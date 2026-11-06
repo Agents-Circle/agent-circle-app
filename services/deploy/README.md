@@ -137,3 +137,34 @@ notional, always including BTC, ETH and SOL. A fresh start on a new host picks i
 universe from that day's open interest, which may differ. Copy the existing `recorder.json`
 into the new `ARENA_RECORD_DIR` before first start if the recorded days are meant to be
 continuous with what is already captured, and copy the existing days across too.
+
+## Server install: system units and off-box backup
+
+What was actually deployed on the Ubuntu 24.04 VPS (Arena and recorder only; the indexer
+and keeper are not on a Season 0 entrant's path).
+
+- Service user `agentcircle` (system user, no login shell). Worktrees live in
+  `/home/agentcircle/.runtime/{src,arena,arena-recorder}`; the recorder gets its own
+  detached worktree, as its unit expects.
+- Data in `/var/lib/agent-circle/{seasons,recorder}`. Env files in `/etc/agent-circle/`,
+  `0600`, owned by `agentcircle`: `<season>.env` (Arena: `SUPABASE_URL`,
+  `SUPABASE_SERVICE_ROLE_KEY`, `ARENA_COINS`, `ARENA_PORT`) and the optional
+  `recorder-<network>.env`.
+- `system/` holds the two units for `/etc/systemd/system/`. They are the user units above
+  with `User=`/`Group=`, absolute paths and `WantedBy=multi-user.target`. `KillSignal=SIGINT`
+  is kept.
+- `backup/` is an hourly `restic` backup of `/var/lib/agent-circle` to an S3-compatible
+  bucket (Cloudflare R2), with `restic forget --prune` and `restic check
+  --read-data-subset=5%` on every run. Copy `restic.env.example` to
+  `/etc/agent-circle/restic.env` (`0600`, root), fill it in, install the script to
+  `/usr/local/sbin/`, the service and timer to `/etc/systemd/system/`, then
+  `systemctl enable --now agent-circle-backup.timer`. Use a bucket and API token that
+  nothing else shares, and keep the `RESTIC_PASSWORD` somewhere off the box: without it
+  the backups cannot be read. The env file with the Supabase key is deliberately not
+  backed up.
+- If R2 token access is restricted by IP, allow both the server's IPv4 and IPv6 addresses:
+  outbound traffic to Cloudflare uses IPv6 by default.
+- Arena behind an existing Caddy in Docker: bind stays `0.0.0.0:8787`, allow only the
+  Docker bridge with `ufw allow from 172.18.0.0/16 to any port 8787 proto tcp`, and proxy
+  to the bridge gateway (`reverse_proxy 172.18.0.1:8787`). A Caddyfile with `admin off`
+  cannot be reloaded; applying a new site block needs a container restart.

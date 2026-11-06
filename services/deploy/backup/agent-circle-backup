@@ -1,0 +1,10 @@
+#!/bin/bash
+# Hourly off-box backup of the Arena input log and recorder data to R2 via restic.
+set -euo pipefail
+set -a; . /etc/agent-circle/restic.env; set +a
+if grep -q REPLACE_ME /etc/agent-circle/restic.env; then echo "restic.env still has placeholders" >&2; exit 1; fi
+restic snapshots >/dev/null 2>&1 || restic init
+restic backup --tag agent-circle /var/lib/agent-circle --exclude-caches
+restic forget --tag agent-circle --keep-hourly 48 --keep-daily 30 --keep-weekly 12 --prune
+# Integrity: cheap structure check hourly, read 5% of data each run.
+restic check --read-data-subset=5%
