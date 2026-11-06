@@ -1,0 +1,21 @@
+[Unit]
+Description=Agent Circle Arena season (%i)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=agentcircle
+Group=agentcircle
+WorkingDirectory=/home/agentcircle/.runtime/arena/services
+Environment=ARENA_SEASON_SLUG=%i
+Environment=ARENA_LOG_PATH=/var/lib/agent-circle/seasons/%i.jsonl
+EnvironmentFile=/etc/agent-circle/%i.env
+ExecStart=/usr/bin/env node --disable-warning=ExperimentalWarning src/arena/main.ts
+Restart=always
+RestartSec=5
+KillSignal=SIGINT
+TimeoutStopSec=15
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,21 @@
+[Unit]
+Description=Agent Circle Arena market-data recorder (%i)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=agentcircle
+Group=agentcircle
+WorkingDirectory=/home/agentcircle/.runtime/arena-recorder/services
+Environment=NETWORK=%i
+Environment=ARENA_RECORD_DIR=/var/lib/agent-circle/recorder/%i
+EnvironmentFile=-/etc/agent-circle/recorder-%i.env
+ExecStart=/usr/bin/env node --disable-warning=ExperimentalWarning src/arena/record.ts
+Restart=always
+RestartSec=5
+KillSignal=SIGINT
+TimeoutStopSec=15
+
+[Install]
+WantedBy=multi-user.target
