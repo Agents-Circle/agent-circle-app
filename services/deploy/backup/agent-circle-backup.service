@@ -1,5 +1,7 @@
 [Unit]
 Description=Agent Circle off-box backup (restic -> R2)
+OnFailure=agent-circle-alert@%n.service
+
 [Service]
 Type=oneshot
 ExecStart=/usr/local/sbin/agent-circle-backup
