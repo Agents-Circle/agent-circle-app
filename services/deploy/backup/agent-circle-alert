@@ -1,0 +1,47 @@
+#!/bin/bash
+# Notify a human that a systemd unit failed. Invoked by `OnFailure=` as
+# `agent-circle-alert@<failed-unit>.service`, so $1 is the unit that failed.
+#
+# Why this exists: a backup timer that fails silently is indistinguishable from one
+# that works, and you find out which it was on the day you need a restore. The same
+# goes for anything else this is attached to.
+#
+# Config in /etc/agent-circle/alert.env (0600 root:root). With no ALERT_WEBHOOK_URL
+# set this exits 0 quietly, so an install without a webhook is not itself a failure.
+set -euo pipefail
+
+unit="${1:-unknown.unit}"
+host="$(hostname -s 2>/dev/null || echo unknown-host)"
+
+[ -r /etc/agent-circle/alert.env ] && { set -a; . /etc/agent-circle/alert.env; set +a; }
+[ -n "${ALERT_WEBHOOK_URL:-}" ] || exit 0
+
+# The last few journal lines are what makes an alert actionable rather than just
+# alarming. They are also whatever the unit chose to print, so the webhook
+# destination should be treated as trusted. Set ALERT_INCLUDE_LOG=0 to send the
+# unit name alone.
+log=""
+if [ "${ALERT_INCLUDE_LOG:-1}" != "0" ]; then
+  log="$(journalctl -u "$unit" -n 10 --no-pager -o cat 2>/dev/null | tail -c 1200 || true)"
+fi
+
+text="[$host] $unit FAILED"
+[ -n "$log" ] && text="$text"$'\n'"$log"
+
+# One payload shape per destination. Slack and Discord want JSON; ntfy and most
+# simple receivers take the body as-is.
+case "$ALERT_WEBHOOK_URL" in
+  *hooks.slack.com*|*discord.com/api/webhooks*|*discordapp.com/api/webhooks*)
+    key='"text"'
+    case "$ALERT_WEBHOOK_URL" in *discord*) key='"content"';; esac
+    body="$(printf '%s' "$text" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')"
+    curl -fsS -m 15 --retry 2 -o /dev/null \
+      -H 'Content-Type: application/json' \
+      -d "{$key: $body}" "$ALERT_WEBHOOK_URL"
+    ;;
+  *)
+    curl -fsS -m 15 --retry 2 -o /dev/null \
+      -H 'Content-Type: text/plain' \
+      --data-binary "$text" "$ALERT_WEBHOOK_URL"
+    ;;
+esac

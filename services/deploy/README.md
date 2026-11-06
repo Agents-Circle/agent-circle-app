@@ -162,6 +162,48 @@ and keeper are not on a Season 0 entrant's path).
   nothing else shares, and keep the `RESTIC_PASSWORD` somewhere off the box: without it
   the backups cannot be read. The env file with the Supabase key is deliberately not
   backed up.
+
+## Knowing when the backup stops working
+
+A backup nobody is told about is a belief, and the two ways it fails need two different
+signals. Set up both, or the quiet one is the one that gets you.
+
+**A run that fails** trips `OnFailure=agent-circle-alert@%n.service` on the backup unit.
+`agent-circle-alert` posts the failing unit's name and its last ten journal lines to
+`ALERT_WEBHOOK_URL` from `/etc/agent-circle/alert.env` (`0600`, root — copy
+`alert.env.example`). Slack and Discord webhooks are detected and sent as JSON;
+everything else gets the message as a plain-text body, which suits ntfy. With no URL set
+the notifier exits quietly, so alerting is off rather than broken.
+
+Those journal lines are whatever the unit printed, and a failing service can print a
+connection string. Treat the webhook destination as trusted, or set
+`ALERT_INCLUDE_LOG=0` and get the unit name alone.
+
+**A run that never happens** — timer disabled, unit masked, box off — cannot be reported
+by anything running on the box, which is what the dead man's switch is for. Set
+`HEALTHCHECK_URL` in `restic.env` to a healthchecks.io-style endpoint: a successful run
+pings it, a failed one pings `<url>/fail`, and the service alerts you when the pings stop
+arriving. A ping that fails never fails the backup, because the absence of a ping is the
+signal.
+
+The alert template is generic — `%n` is the failing unit — so the Arena and recorder can
+use the same notifier by adding `OnFailure=agent-circle-alert@%n.service` to their
+`[Unit]` sections. Both set `Restart=always`, so they only reach a failed state once they
+exhaust `StartLimitBurst`; without a start limit a crash loop alerts nobody.
+
+Install:
+
+```
+install -m 755 backup/agent-circle-alert /usr/local/sbin/
+install -m 644 backup/agent-circle-alert@.service /etc/systemd/system/
+install -m 600 backup/alert.env.example /etc/agent-circle/alert.env   # then fill it in
+systemctl daemon-reload
+```
+
+Test it before trusting it. `systemd-run --unit=alert-test --service-type=oneshot
+/bin/false` won't do it, because the `OnFailure=` lives on the backup unit — point
+`restic.env` at an unreachable repository and run `systemctl start
+agent-circle-backup.service` instead, then put it back.
 - If R2 token access is restricted by IP, allow both the server's IPv4 and IPv6 addresses:
   outbound traffic to Cloudflare uses IPv6 by default.
 - Arena behind an existing Caddy in Docker: bind stays `0.0.0.0:8787`, allow only the

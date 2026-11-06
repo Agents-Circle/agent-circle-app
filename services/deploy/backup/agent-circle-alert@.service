@@ -1,0 +1,16 @@
+# Generic failure notifier. Attach to any unit with:
+#
+#   [Unit]
+#   OnFailure=agent-circle-alert@%n.service
+#
+# `%n` expands to the failing unit's full name and arrives as `%i` here, so one
+# template covers every unit rather than needing one notifier each.
+
+[Unit]
+Description=Alert that %i failed
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/agent-circle-alert %i
+# A notifier that fails must never itself trigger a notifier.
+OnFailure=

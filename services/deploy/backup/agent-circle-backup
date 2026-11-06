@@ -1,6 +1,17 @@
 #!/bin/bash
 # Hourly off-box backup of the Arena input log and recorder data to R2 via restic.
-set -euo pipefail
+#
+# Two independent signals, because they catch different failures:
+#   - `OnFailure=` on the unit fires when a run fails.
+#   - The HEALTHCHECK_URL ping fires when a run does not happen at all: timer
+#     disabled, unit masked, box off. Nothing running on this machine can report
+#     that, which is the whole point of a dead man's switch.
+set -Eeuo pipefail
+
+# Absence of the ping is the signal, so a ping that fails must not fail the backup.
+hc() { [ -n "${HEALTHCHECK_URL:-}" ] && curl -fsS -m 10 --retry 3 -o /dev/null "${HEALTHCHECK_URL}${1:-}" || true; }
+trap 'hc /fail' ERR
+
 set -a; . /etc/agent-circle/restic.env; set +a
 if grep -q REPLACE_ME /etc/agent-circle/restic.env; then echo "restic.env still has placeholders" >&2; exit 1; fi
 restic snapshots >/dev/null 2>&1 || restic init
@@ -8,3 +19,4 @@ restic backup --tag agent-circle /var/lib/agent-circle --exclude-caches
 restic forget --tag agent-circle --keep-hourly 48 --keep-daily 30 --keep-weekly 12 --prune
 # Integrity: cheap structure check hourly, read 5% of data each run.
 restic check --read-data-subset=5%
+hc
