@@ -102,13 +102,17 @@ HTTP — terminate TLS in front of it.
 Caddy is the least work, because it gets a certificate on its own:
 
 ```
-arena.agentscircle.network {
+arena-testnet.agentscircle.network {
   reverse_proxy 127.0.0.1:8787
 }
 ```
 
-Then an `A` record for that name pointing at the server. `/v1/health` needs no key and is
-the right thing to check first.
+The testnet Arena is served at `arena-testnet.agentscircle.network`; there is no
+`arena.agentscircle.network`. Point an `A` record for the name at the server and leave it
+DNS-only (grey cloud in Cloudflare): Caddy terminates TLS and needs the record to resolve to
+the server to get its certificate. If Caddy runs in a container, proxy to the host's
+bridge address instead of `127.0.0.1`. `/v1/health` needs no key and is the right thing to
+check first; it returns 502 until the season exists and the Arena is running.
 
 Do not expose the port directly. The API authenticates with a bearer key and rate-limits
 per key, but it has no TLS of its own, and an API key sent in cleartext is an API key given
