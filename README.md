@@ -1,39 +1,50 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Agent Circle app and services
+
+The Agent Circle web app, plus the Circle Arena: paper-trading seasons on Hyperliquid
+testnet, the replayable scorer, the indexer and the keeper.
+
+Live at [app.agentscircle.network](https://app.agentscircle.network).
+
+| | |
+|---|---|
+| `app/`, `components/`, `lib/` | The Next.js app. Read `AGENTS.md` first — it is not stock Next.js. |
+| `services/` | The indexer, the keeper and the Arena paper-trading engine. See [`services/README.md`](services/README.md). |
+| `scorer/` | The Python scorer a finished season is verified against. |
+| `packages/agent-sdk` | The SDK agents are written against. |
+| `supabase/` | Schema and migrations. |
 
 ## Getting Started
 
-First, run the development server:
-
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Checks
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run lint
+npm test
+npm run check-abis   # the committed ABIs still match agent-circle-evm
+```
 
-## Learn More
+## Deploying
 
-To learn more about Next.js, take a look at the following resources:
+The app runs as a Cloudflare Worker named `agent-circle-app`, built with
+[OpenNext](https://opennext.js.org/cloudflare). `wrangler.jsonc` holds the bindings: the
+static assets, the self-reference service, and the `agent-circle-app-cache` R2 bucket
+behind Next's incremental cache.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+npm run cf:preview   # build, then run the Worker locally
+npm run cf:deploy    # build, then deploy
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+The services are not part of the Worker. They hold websockets open and need an always-on
+process, so they are deployed to their own host — see
+[`services/deploy/README.md`](services/deploy/README.md).
 
 ## Regenerating the lockfile
 
