@@ -48,7 +48,7 @@ class MemoryStore implements Store {
   }
 }
 
-const SEASON = { slug: "season-0", name: "Season 0", number: 0, startsAt: "2026-11-11T00:00:00Z", endsAt: "2026-12-09T00:00:00Z" };
+const SEASON = { slug: "season-0", name: "Season 0", number: 0, startsAt: "2026-11-16T00:00:00Z", endsAt: "2026-12-06T00:00:00Z" };
 const WALLET = "0x00000000000000000000000000000000000000Ab";
 
 /**
