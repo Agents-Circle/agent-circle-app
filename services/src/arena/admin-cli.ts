@@ -17,7 +17,7 @@ import {
  * Season operations, for whoever holds the service-role key.
  *
  *     npm run arena:admin -- season create --slug s0 --name "Season 0" --number 0 \
- *         --starts 2026-11-11T00:00:00Z --ends 2026-12-09T00:00:00Z
+ *         --starts 2026-11-16T00:00:00Z --ends 2026-12-06T00:00:00Z
  *     npm run arena:admin -- season status --slug s0 --to open
  *     npm run arena:admin -- season show --slug s0
  *     npm run arena:admin -- entry issue --season s0 --wallet 0x… --name "My agent"
